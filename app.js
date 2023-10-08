@@ -7,8 +7,7 @@ import {
   MessageComponentTypes,
   ButtonStyleTypes,
 } from 'discord-interactions';
-import { VerifyDiscordRequest, getRandomEmoji, DiscordRequest } from './utils.js';
-import { getShuffledOptions, getResult } from './game.js';
+import { VerifyDiscordRequest, DiscordRequest } from './utils.js';
 
 // Create an express app
 const app = express();
@@ -57,5 +56,5 @@ app.post('/interactions', async function (req, res) {
 
 app.listen(PORT, () => {
   // console log the endpoint the server is listening at
-  console.log(`http://localhost:${PORT}/interactions`);
+  console.log(`hosted on port: ${PORT}`);
 });
