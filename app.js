@@ -8,7 +8,7 @@ import {
   MessageComponentTypes,
   ButtonStyleTypes,
 } from 'discord-interactions';
-import { VerifyDiscordRequest } from './utils.js';
+import { VerifyDiscordRequest, DiscordRequest } from './utils.js';
 import { generateResponse } from './src/Controllers/GPTController.js';
 
 // Create an express app
@@ -79,5 +79,5 @@ app.post('/interactions', async function (req, res) {
 
 app.listen(PORT, () => {
   // console log the endpoint the server is listening at
-  console.log(`Listening on port: ${PORT}`);
+  console.log(`hosted on port: ${PORT}`);
 });
