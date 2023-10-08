@@ -1,3 +1,4 @@
+import fetch from 'node-fetch';
 import 'dotenv/config';
 import express from 'express';
 import {
@@ -7,8 +8,8 @@ import {
   MessageComponentTypes,
   ButtonStyleTypes,
 } from 'discord-interactions';
-import { VerifyDiscordRequest, getRandomEmoji, DiscordRequest } from './utils.js';
-import { getShuffledOptions, getResult } from './game.js';
+import { VerifyDiscordRequest } from './utils.js';
+import { generateResponse } from './src/Controllers/GPTController.js';
 
 // Create an express app
 const app = express();
@@ -17,21 +18,19 @@ const PORT = process.env.PORT || 3000;
 // Parse request body and verifies incoming requests using discord-interactions package
 app.use(express.json({ verify: VerifyDiscordRequest(process.env.PUBLIC_KEY) }));
 
-// Store for in-progress games. In production, you'd want to use a DB
-const activeGames = {};
 
 /**
  * Interactions endpoint URL where Discord will send HTTP requests
  */
 app.post('/interactions', async function (req, res) {
   // Interaction type and data
-  const { type, id, data } = req.body;
+  const { type, data, token, channel_id, message } = req.body;
 
   /**
    * Handle verification requests
    */
   if (type === InteractionType.PING) {
-    return res.send({ type: InteractionResponseType.PONG });
+    return res.json({ type: InteractionResponseType.PONG });
   }
 
   /**
@@ -41,14 +40,37 @@ app.post('/interactions', async function (req, res) {
   if (type === InteractionType.APPLICATION_COMMAND) {
     const { name } = data;
 
-    // "test" command
-    if (name === 'test') {
-      // Send a message into the channel where command was triggered from
+    try {
+      if (name === 'ask-bob') {
+        // Defer the response
+        console.log("Asking bob")
+        res.send({
+          type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+        });
+
+        let gptResponse = await generateResponse(data.options[0].value);
+        
+        // Send a PATCH request to the Discord API to edit the original message
+        let response = await fetch(`https://discord.com/api/v8/webhooks/${process.env.APP_ID}/${token}/messages/@original`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bot ${process.env.DISCORD_TOKEN}`
+          },
+          body: JSON.stringify({
+            content: `**you asked bob:** ${data.options[0].value}\n**bob says:** ${gptResponse}`,
+          }),
+        });
+
+        console.log(response.status);
+      }
+    } catch (error) {
+      console.error(error);
       return res.send({
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
-          // Fetches a random emoji to send from a helper function
-          content: 'hello world ' + getRandomEmoji(),
+          content: `An error occurred while processing your request. Please try again later.`,
+          flags: InteractionResponseFlags.EPHEMERAL,
         },
       });
     }
@@ -57,5 +79,5 @@ app.post('/interactions', async function (req, res) {
 
 app.listen(PORT, () => {
   // console log the endpoint the server is listening at
-  console.log(`http://localhost:${PORT}/interactions`);
+  console.log(`Listening on port: ${PORT}`);
 });
