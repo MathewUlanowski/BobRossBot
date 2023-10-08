@@ -1,25 +1,13 @@
 # Getting Started app for Discord
 
-This project contains a basic rock-paper-scissors-style Discord app written in JavaScript, built for the [getting started guide](https://discord.com/developers/docs/getting-started).
-
-![Demo of app](https://github.com/discord/discord-example-app/raw/main/assets/getting-started-demo.gif?raw=true)
-
-> ✨ A version of this code is also hosted **[on Glitch 🎏](https://glitch.com/~getting-started-discord)** and **[on Replit 🌀](https://replit.com/github/discord/discord-example-app)**
 
 ## Project structure
 Below is a basic overview of the project structure:
 
 ```
-├── examples    -> short, feature-specific sample apps
-│   ├── app.js  -> finished app.js code
-│   ├── button.js
-│   ├── command.js
-│   ├── modal.js
-│   ├── selectMenu.js
 ├── .env.sample -> sample .env file
 ├── app.js      -> main entrypoint for app
 ├── commands.js -> slash command payloads + helpers
-├── game.js     -> logic specific to RPS
 ├── utils.js    -> utility functions and enums
 ├── package.json
 ├── README.md
@@ -39,7 +27,7 @@ Configuring the app is covered in detail in the [getting started guide](https://
 
 First clone the project:
 ```
-git clone https://github.com/discord/discord-example-app.git
+git clone https://github.com/MathewUlanowski/GPTThat.git
 ```
 
 Then navigate to its directory and install dependencies:
