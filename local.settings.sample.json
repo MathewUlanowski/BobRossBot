@@ -1,0 +1,8 @@
+{
+    "IsEncrypted": false,
+    "Values": {
+      "APP_ID": "your_app_id",
+      "DISCORD_TOKEN": "your_discord_token"
+    }
+  }
+  
