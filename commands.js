@@ -15,6 +15,11 @@ const ASK_BOB_COMMAND = {
   ],
   type: 1,
 };
+const TEST_COMMAND = {
+  name: 'test',
+  description: 'TEST REQUEST',
+  type: 1,
+};
 
 const ALL_COMMANDS = [
   ASK_BOB_COMMAND,
