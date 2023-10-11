@@ -13,29 +13,32 @@ import 'dotenv/config';
 import OpenAI from 'openai';
 import { config } from 'dotenv';
 import fetch from 'node-fetch';
-import '../middleware/discordVerifyMiddleware.js';
+import { response } from 'express';
 
+config(); // Load environment variables from .env file
 
 async function getGPTResponse(prompt) {
-    config(); // Load environment variables from .env file
-    const openai = new OpenAI(process.env.OPENAI_API_KEY);
+
+    let oaiKey = process.env.BOBROSSBOTOPENAIAPIKEY;
+    let openai = new OpenAI({apiKey: oaiKey});
     try {
       let response = await openai.chat.completions.create({
         messages: [
-          { 
+          {
             role: 'system',
             content: 'You are Bob Ross and will jokingly respond to messages.' 
           },
-          { 
+          {
             role: 'user',
             content: `${prompt}` 
           }
         ],
         model: 'gpt-3.5-turbo',
         temperature: 1.1,
+        max_tokens: 300,
       });
       
-      return response.choices[0].message.content;
+      return response.choices[0].message.content
     } catch (error) {
       console.error('Error generating response:', error);
       throw error;
@@ -45,7 +48,12 @@ async function getGPTResponse(prompt) {
 async function GetInteractionResponse (context, req)
 {
     try {
-        const { type, data, token, channel_id, message } = req.body;
+        // read the body of the req as a stream given this is an azure function
+        const fullReq = await req.json();
+        const { type, data, token, channel_id, message } = fullReq;
+        
+        console.log(fullReq);
+        
         if (type === InteractionType.PING) {
                 return { type: InteractionResponseType.PONG };
         }
@@ -58,7 +66,6 @@ async function GetInteractionResponse (context, req)
         if (name === 'ask-bob') {
             // Defer the response
             console.log("Asking bob")
-            if(type === InteractionType.PING)
             
             context.JSON( {
                 type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
@@ -71,7 +78,7 @@ async function GetInteractionResponse (context, req)
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bot ${process.env.DISCORD_TOKEN}`
+                    'Authorization': `Bot ${process.env.BOBROSSBOTTOKEN}`
                 },
                 body: JSON.stringify({
                     content: `**you asked bob:** ${data.options[0].value}\n**bob says:** ${gptResponse}`,
@@ -104,13 +111,39 @@ app.http('Test', {
     }
 });
 
-app.http('Interactions', {
+app.http("talk-to-bob", {
     methods: ['POST'],
     authLevel: 'anonymous',
-    handler: async (request, context) => {
+    handler: async (req, context) => {
+      context.log("Function called");
+      let requestBody = await req.json();
+
+      context.log(requestBody);
+
+      var response = {
+        message: (await getGPTResponse(requestBody.prompt))
+      }
+      console.log(response);
+
+      return {
+        body: JSON.stringify(response)
+      }
+    }
+})
+
+app.http('Interactions', {
+    methods: ['POST', 'GET', 'PATCH', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
+    authLevel: 'anonymous',
+    handler: async (req, context) => {
         context.log("Function called");
 
         // return the response from the interaction handler
-        return await GetInteractionResponse(context, request);
+        let response = await GetInteractionResponse(context, req);
+
+        context.log(response);
+
+        return {
+          body: JSON.stringify(response)
+        };
     }
 });
