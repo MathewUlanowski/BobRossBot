@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+logs/
+# Kubernetes and Helm secrets
+k8s/secrets.yaml
+helm/values.yaml
+
+# Editor and OS files
+.vscode/
+.DS_Store
+npm-debug.log*
+# Kubernetes and Helm secrets
+k8s/secrets.yaml
+helm/values.yaml
