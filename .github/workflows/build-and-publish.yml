@@ -1,0 +1,137 @@
+name: Build, Test, Publish & Deploy
+
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+env:
+  IMAGE_REPO: ghcr.io/${{ github.repository_owner }}/bobrossbot
+
+jobs:
+  build-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --silent
+
+      - name: Build (type-check + compile)
+        run: npm run build --if-present
+
+      - name: Clean previous coverage
+        run: rm -rf coverage || true
+
+      - name: Run tests with coverage
+        env:
+          CI: true
+        run: npm test --silent
+
+      - name: Check coverage
+        id: coverage_check
+        run: |
+          if [ -d coverage ] && [ "$(ls -A coverage)" ]; then
+            echo "found=true" >> $GITHUB_OUTPUT
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload coverage artifact
+        if: steps.coverage_check.outputs.found == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ github.run_id }}-${{ matrix.node-version }}
+          path: coverage
+          overwrite: true
+
+  build-and-push:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    needs: build-test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        id: build_push
+        uses: docker/build-push-action@v4
+        with:
+          push: true
+          tags: |
+            ${{ env.IMAGE_REPO }}:${{ github.sha }}
+            ${{ env.IMAGE_REPO }}:${{ github.ref_name }} || true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Set image tag output
+        run: echo "image_tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+
+  publish-latest-and-deploy:
+    name: Publish latest & Deploy (main only)
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag image as latest and push
+        run: |
+          docker pull ${{ env.IMAGE_REPO }}:${{ github.sha }}
+          docker tag ${{ env.IMAGE_REPO }}:${{ github.sha }} ${{ env.IMAGE_REPO }}:latest
+          docker push ${{ env.IMAGE_REPO }}:latest
+
+      - name: Deploy to production (via kubeconfig or SSH)
+        run: |
+          if [ -n "${{ secrets.KUBE_CONFIG }}" ]; then
+            echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+            export KUBECONFIG=$PWD/kubeconfig
+            helm upgrade --install bobrossbot ./helm --namespace bobrossbot --create-namespace --set image.repository=${{ env.IMAGE_REPO }} --set image.tag=${{ github.sha }} --atomic --wait --timeout 5m
+          elif [ -n "${{ secrets.HETZNER_HOST }}" ]; then
+            tar -czf chart.tar.gz helm
+            scp -o StrictHostKeyChecking=yes -i $HOME/.ssh/bobrossbot_deploy chart.tar.gz "${{ secrets.HETZNER_SSH_USER || 'root' }}@${{ secrets.HETZNER_HOST }}:~/chart.tar.gz"
+            ssh -o StrictHostKeyChecking=yes -i $HOME/.ssh/bobrossbot_deploy "${{ secrets.HETZNER_SSH_USER || 'root' }}@${{ secrets.HETZNER_HOST }}" 'mkdir -p ~/helm-deploy && tar -xzf ~/chart.tar.gz -C ~/helm-deploy && helm upgrade --install bobrossbot ~/helm-deploy/helm --namespace bobrossbot --create-namespace --set image.repository=${{ env.IMAGE_REPO }} --set image.tag=${{ github.sha }} --atomic --wait --timeout 5m'
+          else
+            echo "No deploy method configured (KUBE_CONFIG or HETZNER_HOST missing). Skipping deploy."
+          fi
