@@ -29,7 +29,7 @@
 - [ ] Add manual production deploy workflow (`workflow_dispatch`) to allow controlled rollouts via GitHub Actions.
 - [ ] Add Kubernetes `readiness` and `liveness` probes (helm templates)
 - [x] Add CI job to run tests on PRs (prevent merging failing changes)
-- [ ] Add CI job to run lint on PRs (prevent merging style issues)
+- [x] Add CI job to run lint on PRs (prevent merging style issues)
 - [ ] Implement OpenAI retry/backoff for transient errors (429/5xx)
 
 ### Production Readiness
