@@ -28,6 +28,10 @@ jobs:
           tags: |
             bobrossbot:pr-${{ github.sha }}
 
+      - name: Run linter inside container
+        run: |
+          docker run --rm bobrossbot:pr-${{ github.sha }} npm run lint --silent
+
       - name: Run unit tests inside container
         run: |
           docker run --rm bobrossbot:pr-${{ github.sha }} npm test --silent

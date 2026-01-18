@@ -8,7 +8,8 @@
     "build": "tsc",
     "dev": "nodemon --exec ts-node src/index.ts",
     "test": "jest --coverage",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "lint": "eslint 'src/**/*.{ts,js}' --ext .ts --max-warnings 0"
   },
   "dependencies": {
     "discord.js": "^14.11.0",
@@ -24,6 +25,10 @@
     "nodemon": "^3.0.1",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.1",
-    "typescript": "^5.2.0"
+    "typescript": "^5.2.0",
+    "eslint": "^8.46.0",
+    "@typescript-eslint/parser": "^6.8.0",
+    "@typescript-eslint/eslint-plugin": "^6.8.0",
+    "eslint-config-prettier": "^9.3.0"
   }
 }
