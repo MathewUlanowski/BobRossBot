@@ -46,5 +46,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage
+          # Use a unique name per workflow run and attempt to avoid 409 conflicts when re-uploading
+          name: coverage-${{ github.run_id }}-attempt-${{ github.run_attempt }}
           path: coverage
