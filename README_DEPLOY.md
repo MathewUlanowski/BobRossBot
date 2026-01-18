@@ -31,9 +31,16 @@ docker push <REGISTRY>/bobrossbot:latest
 2) Create namespace and secrets (recommended)
 ```bash
 kubectl create namespace bobrossbot
-# Create k8s secret from your .env file
+# Create k8s secret from your .env file (do this carefully on production - consider SealedSecrets or external secret store)
 kubectl create secret generic bobrossbot-secrets --from-env-file=.env -n bobrossbot
 ```
+
+Production deployment notes:
+- Deploy to a new `bobrossbot` namespace to isolate from your MC server.
+- Prefer a rolling deployment with a small replica count initially and monitor resource usage.
+- Use Helm's `--set image.repository` and `--set image.tag` to point to the CI-built image tag (we push images as `<REGISTRY>/bobrossbot:${{ github.sha }}` in CI).
+- If your cluster is shared with the MC server, schedule the deployment during a low-traffic window and ensure resource requests/limits are conservative to avoid contention.
+- For secrets in production, prefer sealed secrets or the External Secrets Operator over committing values to Helm charts or repo.
 
 3) Deploy with Helm
 ```bash
