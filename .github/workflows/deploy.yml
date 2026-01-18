@@ -46,18 +46,23 @@ jobs:
         run: helm lint ./helm
 
       - name: Configure kubeconfig
-        if: ${{ secrets.KUBE_CONFIG != '' }}
         run: |
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
-          export KUBECONFIG=$PWD/kubeconfig
+          if [ -n "${{ secrets.KUBE_CONFIG }}" ]; then
+            echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+            echo "Kubeconfig written to $PWD/kubeconfig"
+          else
+            echo "KUBE_CONFIG secret not set; skipping kubeconfig setup"
+          fi
 
       - name: Deploy Helm chart to prod
-        if: ${{ secrets.KUBE_CONFIG != '' }}
-        env:
-          KUBECONFIG: ${{ github.workspace }}/kubeconfig
         run: |
-          helm upgrade --install bobrossbot ./helm \
-            --namespace bobrossbot --create-namespace \
-            --set image.repository=${{ env.IMAGE }} \
-            --set image.tag=${{ env.IMAGE_TAG }} \
-            --atomic --wait --timeout 5m
+          if [ -n "${{ secrets.KUBE_CONFIG }}" ]; then
+            export KUBECONFIG=$PWD/kubeconfig
+            helm upgrade --install bobrossbot ./helm \
+              --namespace bobrossbot --create-namespace \
+              --set image.repository=${{ env.IMAGE }} \
+              --set image.tag=${{ env.IMAGE_TAG }} \
+              --atomic --wait --timeout 5m
+          else
+            echo "KUBE_CONFIG secret not set; skipping Helm deploy"
+          fi
