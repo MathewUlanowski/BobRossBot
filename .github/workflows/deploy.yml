@@ -35,15 +35,10 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: |
-            ${{ secrets.REGISTRY_URL }}/bobrossbot:latest
-            ${{ secrets.REGISTRY_URL }}/bobrossbot:${{ github.sha }}
+      - name: Build and push Docker image (script)
+        run: |
+          chmod +x ./scripts/publish.sh
+          ./scripts/publish.sh "${{ secrets.REGISTRY_URL }}" bobrossbot "${{ github.sha }}"
 
       - name: Configure kubeconfig
         run: |

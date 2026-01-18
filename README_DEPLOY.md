@@ -12,10 +12,14 @@ Prerequisites
 
 1) Build and push the Docker image
 
-PowerShell (Windows):
-```powershell
-# Edit the script parameters or pass them in.
-.
+Use the included script (recommended):
+
+```bash
+# Local usage
+./scripts/publish.sh <REGISTRY> bobrossbot latest
+
+# CI usage (example):
+# ./scripts/publish.sh ${{ secrets.REGISTRY_URL }} bobrossbot ${{ github.sha }}
 ```
 
 Or run manually:
