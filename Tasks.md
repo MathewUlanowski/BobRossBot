@@ -27,6 +27,7 @@
 - [ ] Deploy Helm chart to production cluster (create namespace `bobrossbot`). (I will add a manual `workflow_dispatch` deploy workflow and docs)
 - [ ] Prepare production deployment steps and secret setup; include non-disruptive rollout guidance.
 - [ ] Add manual production deploy workflow (`workflow_dispatch`) to allow controlled rollouts via GitHub Actions.
+- [x] Fix deploy workflow: use IMAGE/IMAGE_TAG and correct GHCR path (PR #26)
 - [ ] Add Kubernetes `readiness` and `liveness` probes (helm templates)
 - [x] Add CI job to run tests on PRs (prevent merging failing changes)
 - [x] Add CI job to run lint on PRs (prevent merging style issues)
