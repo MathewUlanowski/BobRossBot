@@ -7,6 +7,10 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
+      REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+      REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,9 +35,9 @@ jobs:
       - name: Log in to registry
         uses: docker/login-action@v2
         with:
-          registry: ${{ secrets.REGISTRY_URL }}
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
+          registry: ${{ env.REGISTRY_URL }}
+          username: ${{ env.REGISTRY_USERNAME }}
+          password: ${{ env.REGISTRY_PASSWORD }}
 
       - name: Build and push Docker image (script)
         run: |
@@ -54,13 +58,13 @@ jobs:
           kubectl create namespace bobrossbot || true
 
       - name: Create Docker registry pull secret (if needed)
-        if: ${{ secrets.REGISTRY_USERNAME && secrets.REGISTRY_PASSWORD }}
+        if: ${{ env.REGISTRY_USERNAME && env.REGISTRY_PASSWORD }}
         run: |
           kubectl delete secret regcred -n bobrossbot || true
           kubectl create secret docker-registry regcred \
-            --docker-server=${{ secrets.REGISTRY_URL }} \
-            --docker-username=${{ secrets.REGISTRY_USERNAME }} \
-            --docker-password=${{ secrets.REGISTRY_PASSWORD }} \
+            --docker-server=${{ env.REGISTRY_URL }} \
+            --docker-username=${{ env.REGISTRY_USERNAME }} \
+            --docker-password=${{ env.REGISTRY_PASSWORD }} \
             -n bobrossbot
 
       - name: Create application secrets
@@ -74,6 +78,6 @@ jobs:
       - name: Deploy Helm chart
         run: |
           helm upgrade --install bobrossbot ./helm --namespace bobrossbot \
-            --set image.repository=${{ secrets.REGISTRY_URL }}/bobrossbot \
+            --set image.repository=${{ env.REGISTRY_URL }}/bobrossbot \
             --set image.tag=${{ github.sha }} \
             --set imagePullSecrets={regcred}
