@@ -13,3 +13,10 @@ npm-debug.log*
 
 # Local Copilot instruction (user preference - do not commit)
 .github/COPILOT_INSTRUCTIONS.md
+
+# Generated coverage reports
+coverage/
+coverage/*
+coverage/**
+coverage.lcov
+lcov.info
