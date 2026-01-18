@@ -23,8 +23,9 @@
 - [x] Write Kubernetes manifests for Deployment, Service, and Secrets.
 - [x] Create a Helm chart for easier deployment.
 - [x] Test deployment on a local Kubernetes cluster. ✅
-- [ ] Build Docker image and push to container registry.
+- [x] Build Docker image and push to container registry. (CI deploy workflow will build and push on merge to `main`)
 - [ ] Deploy Helm chart to production cluster (create namespace `bobrossbot`).
+- [ ] Prepare production deployment steps and secret setup; include non-disruptive rollout guidance.
 - [ ] Add Kubernetes `readiness` and `liveness` probes (helm templates)
 - [ ] Add CI job to run tests on PRs (prevent merging failing changes)
 - [ ] Implement OpenAI retry/backoff for transient errors (429/5xx)
