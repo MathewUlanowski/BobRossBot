@@ -11,8 +11,8 @@ permissions:
   id-token: write
 
 env:
-  IMAGE: ghcr.io/${{ github.repository }}
-  IMAGE_TAG: v${{ github.run_id }}
+  IMAGE: ghcr.io/${{ toLower(github.repository) }}
+  IMAGE_TAG: ${{ github.ref == 'refs/heads/main' && 'latest' || format('v{0}', github.run_id) }}
 
 jobs:
   deploy:
