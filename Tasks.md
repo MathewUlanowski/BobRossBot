@@ -35,6 +35,7 @@
 - [ ] Implement error handling for API calls and bot events.
 - [x] Write unit tests for critical functionality. (Added `openaiHelper` unit tests and Jest setup)
 - [ ] Set up CI/CD pipeline for automated testing and deployment.
+- [x] Remove tracked coverage artifacts from repository (cleaned up coverage/ files)
 
 ## Notes
 - Replace placeholders in `.env` and Kubernetes secrets with actual tokens before deployment.
