@@ -10,6 +10,6 @@ helm/values.yaml
 .vscode/
 .DS_Store
 npm-debug.log*
-# Kubernetes and Helm secrets
-k8s/secrets.yaml
-helm/values.yaml
+
+# Local Copilot instruction (user preference - do not commit)
+.github/COPILOT_INSTRUCTIONS.md
