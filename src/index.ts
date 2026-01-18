@@ -34,9 +34,9 @@ client.once('ready', () => {
         name: 'prompt',
         description: 'What would you like to ask Bob Ross?',
         type: 3, // STRING
-        required: true
-      }
-    ]
+        required: true,
+      },
+    ],
   };
 
   (async () => {
@@ -64,15 +64,22 @@ client.on('interactionCreate', async (interaction) => {
   await interaction.deferReply();
 
   try {
-    const response = await callWithRetry(() => openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: 'You are Bob Ross, the painter. Respond in a calm and encouraging tone.' },
-        { role: 'user', content: prompt }
-      ],
-      max_tokens: 500
-    }));
-    const botReply = response.choices?.[0]?.message?.content || 'Oh no, the happy little clouds are blocking my thoughts.';
+    const response = await callWithRetry(() =>
+      openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are Bob Ross, the painter. Respond in a calm and encouraging tone.',
+          },
+          { role: 'user', content: prompt },
+        ],
+        max_tokens: 500,
+      }),
+    );
+    const botReply =
+      response.choices?.[0]?.message?.content ||
+      'Oh no, the happy little clouds are blocking my thoughts.';
     logger.info(`Responding to /bobross: ${botReply.slice(0, 200)}`);
     await interaction.editReply(botReply);
   } catch (error) {
@@ -80,4 +87,6 @@ client.on('interactionCreate', async (interaction) => {
     await interaction.editReply('Oops, something went wrong while painting this response.');
   }
 });
-client.login(process.env.DISCORD_TOKEN).catch((err) => logger.error(`Failed to login: ${String(err)}`));
+client
+  .login(process.env.DISCORD_TOKEN)
+  .catch((err) => logger.error(`Failed to login: ${String(err)}`));
