@@ -26,6 +26,7 @@
 - [x] Build Docker image and push to container registry. (CI deploy workflow will build and push on merge to `main`)
 - [ ] Deploy Helm chart to production cluster (create namespace `bobrossbot`).
 - [ ] Prepare production deployment steps and secret setup; include non-disruptive rollout guidance.
+- [ ] Add manual production deploy workflow (`workflow_dispatch`) to allow controlled rollouts via GitHub Actions.
 - [ ] Add Kubernetes `readiness` and `liveness` probes (helm templates)
 - [ ] Add CI job to run tests on PRs (prevent merging failing changes)
 - [ ] Implement OpenAI retry/backoff for transient errors (429/5xx)
@@ -35,6 +36,7 @@
 - [ ] Implement error handling for API calls and bot events.
 - [x] Write unit tests for critical functionality. (Added `openaiHelper` unit tests and Jest setup)
 - [ ] Set up CI/CD pipeline for automated testing and deployment.
+- [ ] Add CI secrets to GitHub Actions (REGISTRY_URL, REGISTRY_USERNAME, REGISTRY_PASSWORD, KUBE_CONFIG, DISCORD_TOKEN, OPENAI_API_KEY).
 
 ## Notes
 - Replace placeholders in `.env` and Kubernetes secrets with actual tokens before deployment.
