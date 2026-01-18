@@ -28,6 +28,7 @@
 - [ ] Prepare production deployment steps and secret setup; include non-disruptive rollout guidance.
 - [ ] Add manual production deploy workflow (`workflow_dispatch`) to allow controlled rollouts via GitHub Actions.
 - [x] Restore & extend deploy workflow: added PR validation (build + helm lint/template) and safe deploy (PR #26)
+- [ ] Rewrite workflows: replace all workflows with minimal CI (tests+lint) and deploy (PR #27)
 - [ ] Add Kubernetes `readiness` and `liveness` probes (helm templates)
 - [x] Add CI job to run tests on PRs (prevent merging failing changes)
 - [x] Add CI job to run lint on PRs (prevent merging style issues)
