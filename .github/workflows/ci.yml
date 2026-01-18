@@ -37,15 +37,29 @@ jobs:
       - name: Build (type-check + compile)
         run: npm run build --if-present
 
+      - name: Clean previous coverage (if any)
+        run: rm -rf coverage || true
+
       - name: Run tests with coverage
         env:
           CI: true
         run: npm test --silent
 
+      - name: Check coverage directory
+        id: coverage_check
+        run: |
+          if [ -d coverage ] && [ "$(ls -A coverage)" ]; then
+            echo "found=true" >> $GITHUB_OUTPUT
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Upload coverage artifact
-        if: always()
+        if: always() && steps.coverage_check.outputs.found == 'true'
         uses: actions/upload-artifact@v4
         with:
-          # Use a unique name per workflow run and attempt to avoid 409 conflicts when re-uploading
-          name: coverage-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          # Include job & matrix to make name unique across parallel matrix jobs and retries
+          name: coverage-${{ github.run_id }}-${{ github.job }}-${{ matrix.node-version }}-attempt-${{ github.run_attempt }}
           path: coverage
+          overwrite: true
+          if-no-files-found: warn
