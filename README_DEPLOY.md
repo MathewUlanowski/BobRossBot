@@ -35,6 +35,31 @@ kubectl create namespace bobrossbot
 kubectl create secret generic bobrossbot-secrets --from-env-file=.env -n bobrossbot
 ```
 
+Repository (GitHub) secrets
+- Add the following repository secrets (Settings → Secrets → Actions) or using the `gh` CLI. These are used by the production deploy workflow (`.github/workflows/deploy-prod.yml`):
+  - `KUBE_CONFIG` (base64-encoded kubeconfig file) — optional; if present the workflow will deploy using kubeconfig.
+  - `HETZNER_HOST` (e.g., `5.161.236.185`) — optional; if present the workflow will deploy by SSHing into this host.
+  - `HETZNER_KNOWN_HOSTS` (output of `ssh-keyscan <host>` or your known_hosts entry) — required when using `HETZNER_HOST`.
+  - `HETZNER_SSH_PRIVATE_KEY` (private key content) — required when using `HETZNER_HOST` to allow SSH auth.
+  - `HETZNER_SSH_USER` (optional, defaults to `root`) — SSH user for remote deploy.
+
+Example `gh` CLI commands (replace owner/repo with your repo):
+```bash
+# set single-value secrets
+echo "5.161.236.185" | gh secret set HETZNER_HOST -R owner/repo
+# set known hosts (copy the full known_hosts line)
+echo "5.161.236.185 ssh-ed25519 AAAAC3NzaC1..." | gh secret set HETZNER_KNOWN_HOSTS -R owner/repo
+# set SSH private key (read from file)
+gh secret set HETZNER_SSH_PRIVATE_KEY -R owner/repo --body "$(cat ~/.ssh/id_ed25519)"
+# or base64-encoded kubeconfig
+cat ~/.kube/config | base64 -w0 | gh secret set KUBE_CONFIG -R owner/repo
+```
+
+Behavior notes
+- The deploy workflow supports two modes:
+  1. If `KUBE_CONFIG` is present, it uses that to run `helm upgrade` directly from the runner.
+  2. If `HETZNER_HOST` is present, it will SCP the packaged chart to the host and run `helm upgrade` there via SSH (uses `HETZNER_SSH_PRIVATE_KEY` / `HETZNER_KNOWN_HOSTS`).
+- Do not commit any secrets into the repository. Rotate keys if you suspect they were exposed.
 Production deployment notes:
 - Deploy to a new `bobrossbot` namespace to isolate from your MC server.
 - Prefer a rolling deployment with a small replica count initially and monitor resource usage.

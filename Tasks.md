@@ -24,7 +24,7 @@
 - [x] Create a Helm chart for easier deployment.
 - [x] Test deployment on a local Kubernetes cluster. ✅
 - [x] Build Docker image and push to container registry. (CI deploy workflow will build and push on merge to `main`)
-- [ ] Deploy Helm chart to production cluster (create namespace `bobrossbot`).
+- [ ] Deploy Helm chart to production cluster (create namespace `bobrossbot`). (I will add a manual `workflow_dispatch` deploy workflow and docs)
 - [ ] Prepare production deployment steps and secret setup; include non-disruptive rollout guidance.
 - [ ] Add manual production deploy workflow (`workflow_dispatch`) to allow controlled rollouts via GitHub Actions.
 - [ ] Add Kubernetes `readiness` and `liveness` probes (helm templates)
