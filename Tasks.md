@@ -29,6 +29,8 @@
 - [ ] Add manual production deploy workflow (`workflow_dispatch`) to allow controlled rollouts via GitHub Actions.
 - [x] Restore & extend deploy workflow: added PR validation (build + helm lint/template) and safe deploy (PR #26)
 - [ ] Rewrite workflows: replace all workflows with minimal CI (tests+lint) and deploy (PR #27)
+
+> Automated trigger: kicking off a manual deploy to Hetzner via GitHub Actions at 2026-01-18 20:xx UTC (temporary, will be reverted)
 - [x] Remove stale secret: `AZUREAPPSERVICE_PUBLISHPROFILE_BFD2A617ECF44653BB19F0D2DB756DEE` (deleted from repo)
 - [ ] Add Kubernetes `readiness` and `liveness` probes (helm templates)
 - [x] Add CI job to run tests on PRs (prevent merging failing changes)
