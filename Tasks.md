@@ -37,6 +37,7 @@
 - [ ] Implement error handling for API calls and bot events.
 - [x] Write unit tests for critical functionality. (Added `openaiHelper` unit tests and Jest setup)
 - [ ] Set up CI/CD pipeline for automated testing and deployment.
+- [x] Remove tracked coverage artifacts from repository (cleaned up coverage/ files)
 - [ ] Add CI secrets to GitHub Actions (REGISTRY_URL, REGISTRY_USERNAME, REGISTRY_PASSWORD, KUBE_CONFIG, DISCORD_TOKEN, OPENAI_API_KEY).
 
 ## Notes
