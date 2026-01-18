@@ -3,6 +3,8 @@ import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import { RESTPostAPIChatInputApplicationCommandsJSONBody } from 'discord.js';
 import logger from './logger';
+import { startHealthServer } from './health';
+import { callWithRetry } from './openaiClient';
 
 dotenv.config();
 
@@ -13,6 +15,14 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // Use only the Guilds intent since we're using slash commands (no Message Content intent required)
 client.once('ready', () => {
   logger.info('Bob Ross Bot is online!');
+
+  // start health server for readiness/liveness probes
+  try {
+    const port = Number(process.env.PORT) || 3000;
+    startHealthServer(port);
+  } catch (err) {
+    logger.error(`Failed to start health server: ${String(err)}`);
+  }
 
   // Register slash command `/bobross`.
   // If GUILD_ID is provided, register it to that guild for immediate availability (recommended for testing).
@@ -54,14 +64,14 @@ client.on('interactionCreate', async (interaction) => {
   await interaction.deferReply();
 
   try {
-    const response = await openai.chat.completions.create({
+    const response = await callWithRetry(() => openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: 'You are Bob Ross, the painter. Respond in a calm and encouraging tone.' },
         { role: 'user', content: prompt }
       ],
       max_tokens: 500
-    });
+    }));
     const botReply = response.choices?.[0]?.message?.content || 'Oh no, the happy little clouds are blocking my thoughts.';
     logger.info(`Responding to /bobross: ${botReply.slice(0, 200)}`);
     await interaction.editReply(botReply);

@@ -4,7 +4,7 @@ dist/
 logs/
 # Kubernetes and Helm secrets
 k8s/secrets.yaml
-helm/values.yaml
+helm/values.secret.yaml
 
 # Editor and OS files
 .vscode/
