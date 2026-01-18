@@ -33,20 +33,23 @@ jobs:
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/${{ github.repository }}:v${{ github.run_id }}
 
-      - name: Helm lint
+      - name: Set up Helm
         uses: azure/setup-helm@v3
+
+      - name: Run Helm lint
+        run: helm lint ./helm
 
       - name: 'Install kubectl'
         uses: azure/setup-kubectl@v3
 
       - name: Configure kubeconfig
-        if: ${{ secrets.KUBE_CONFIG }}
+        if: ${{ secrets.KUBE_CONFIG != '' }}
         run: |
           echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
           export KUBECONFIG=$PWD/kubeconfig
 
       - name: Deploy Helm chart to prod (via Kubeconfig)
-        if: ${{ secrets.KUBE_CONFIG }}
+        if: ${{ secrets.KUBE_CONFIG != '' }}
         env:
           KUBECONFIG: ${{ github.workspace }}/kubeconfig
         run: |
@@ -57,11 +60,11 @@ jobs:
             --atomic --wait --timeout 5m
 
       - name: Post-deploy: describe release (Kubeconfig)
-        if: ${{ secrets.KUBE_CONFIG }}
+        if: ${{ secrets.KUBE_CONFIG != '' }}
         run: helm status bobrossbot --namespace bobrossbot || true
 
       - name: Set up SSH key and known_hosts (for Hetzner SSH deploy)
-        if: ${{ secrets.HETZNER_HOST }}
+        if: ${{ secrets.HETZNER_HOST != '' }}
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.HETZNER_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
@@ -69,16 +72,22 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
 
       - name: Package Helm chart and copy to remote (Hetzner)
-        if: ${{ secrets.HETZNER_HOST }}
+        if: ${{ secrets.HETZNER_HOST != '' }}
+        env:
+          SSH_USER: ${{ secrets.HETZNER_SSH_USER }}
         run: |
           tar -czf chart.tar.gz helm
-          scp -o StrictHostKeyChecking=yes chart.tar.gz "${{ secrets.HETZNER_SSH_USER || 'root' }}@${{ secrets.HETZNER_HOST }}:~/chart.tar.gz"
+          scp -o StrictHostKeyChecking=yes chart.tar.gz "${SSH_USER:-root}@${{ secrets.HETZNER_HOST }}:~/chart.tar.gz"
 
       - name: Remote deploy with Helm (Hetzner)
-        if: ${{ secrets.HETZNER_HOST }}
+        if: ${{ secrets.HETZNER_HOST != '' }}
+        env:
+          SSH_USER: ${{ secrets.HETZNER_SSH_USER }}
         run: |
-          ssh -o StrictHostKeyChecking=yes "${{ secrets.HETZNER_SSH_USER || 'root' }}@${{ secrets.HETZNER_HOST }}" 'mkdir -p ~/helm-deploy && tar -xzf ~/chart.tar.gz -C ~/helm-deploy && helm upgrade --install bobrossbot ~/helm-deploy/helm --namespace bobrossbot --create-namespace --set image.repository=ghcr.io/${{ github.repository_owner }}/${{ github.repository }} --set image.tag=v${{ github.run_id }} --atomic --wait --timeout 5m && rm -rf ~/chart.tar.gz ~/helm-deploy'
+          ssh -o StrictHostKeyChecking=yes "${SSH_USER:-root}@${{ secrets.HETZNER_HOST }}" 'mkdir -p ~/helm-deploy && tar -xzf ~/chart.tar.gz -C ~/helm-deploy && helm upgrade --install bobrossbot ~/helm-deploy/helm --namespace bobrossbot --create-namespace --set image.repository=ghcr.io/${{ github.repository_owner }}/${{ github.repository }} --set image.tag=v${{ github.run_id }} --atomic --wait --timeout 5m && rm -rf ~/chart.tar.gz ~/helm-deploy' 
 
       - name: Post-deploy: describe release (Hetzner)
-        if: ${{ secrets.HETZNER_HOST }}
-        run: ssh -o StrictHostKeyChecking=yes "${{ secrets.HETZNER_SSH_USER || 'root' }}@${{ secrets.HETZNER_HOST }}" "helm status bobrossbot --namespace bobrossbot || true"
+        if: ${{ secrets.HETZNER_HOST != '' }}
+        env:
+          SSH_USER: ${{ secrets.HETZNER_SSH_USER }}
+        run: ssh -o StrictHostKeyChecking=yes "${SSH_USER:-root}@${{ secrets.HETZNER_HOST }}" "helm status bobrossbot --namespace bobrossbot || true"
