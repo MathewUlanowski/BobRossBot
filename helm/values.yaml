@@ -1,0 +1,27 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/MathewUlanowski/bobrossbot
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+# NOTE: Do NOT put real secrets in this file if this repository is public.
+# Use helm/values.secret.yaml (gitignored) or external secret stores for production.
+env:
+  DISCORD_TOKEN: "<REPLACE_WITH_DISCORD_TOKEN_OR_USE_SECRETS>"
+  OPENAI_API_KEY: "<REPLACE_WITH_OPENAI_KEY_OR_USE_SECRETS>"
+
+# If your registry requires authentication, set imagePullSecrets to the secret name
+imagePullSecrets: []
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
