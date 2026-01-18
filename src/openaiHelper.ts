@@ -1,11 +1,22 @@
-export function extractMessageFromResponse(response: any): string | null {
+export function extractMessageFromResponse(response: unknown): string | null {
   // Support common shapes: response.choices[0].message.content or response.choices[0].message
-  if (!response || !response.choices || !Array.isArray(response.choices) || response.choices.length === 0) return null;
-  const choice = response.choices[0];
-  if (choice?.message?.content) return choice.message.content;
+  if (!response || typeof response !== 'object') return null;
+  const res = response as Record<string, unknown>;
+  const choices = res.choices;
+  if (!choices || !Array.isArray(choices) || choices.length === 0) return null;
+  const choice = choices[0] as Record<string, unknown>;
+  const message = choice.message;
+  if (
+    message &&
+    typeof message === 'object' &&
+    'content' in message &&
+    typeof (message as Record<string, unknown>).content === 'string'
+  ) {
+    return (message as Record<string, unknown>).content as string;
+  }
   // Some clients return message as string directly
-  if (typeof choice?.message === 'string') return choice.message;
+  if (typeof message === 'string') return message;
   // OpenAI older shape: choice.text
-  if (choice?.text) return choice.text;
+  if (typeof choice.text === 'string') return choice.text;
   return null;
 }
