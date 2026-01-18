@@ -68,6 +68,25 @@ gh secret set KUBE_CONFIG --body $base64 -R MathewUlanowski/BobRossBot
 Remove-Item $KubeFile; Remove-Item $caFile
 ```
 
+## 5) Quick: deploy directly from your Windows machine to Hetzner (one-liner)
+I added `scripts/deploy-hetzner.ps1` which simplifies manual deploys. Example usage (PowerShell):
+
+```powershell
+# Build/push image to GHCR and deploy
+.\scripts\deploy-hetzner.ps1 -Host "5.161.236.185" -User root -PushImage
+
+# Deploy using an existing image tag (no push)
+.\scripts\deploy-hetzner.ps1 -Host "5.161.236.185" -User root -ImageTag "v1234"
+```
+
+Prerequisites:
+- `gh` CLI authenticated (if using -PushImage)
+- `docker` installed and able to push to GHCR (if using -PushImage)
+- Remote server has `helm` and `kubectl` installed and the `root` (or given user) can run them
+- SSH key access to the server (default: `%USERPROFILE%\.ssh\id_ed25519`)
+
+If you'd like, I can also add an interactive PowerShell wrapper that prompts for missing values and verifies remote tools before running. Let me know and I'll add it to `scripts/`.
+
 ## Notes & Security
 - The ServiceAccount created is namespace-scoped. You can further restrict `rules` in `k8s/deployer-sa.yaml` to tighten permissions.
 - Use `kubectl create token` where possible (avoids writing long-lived secrets). If your cluster doesn't support it, the token obtained from the secret behaves similarly.
