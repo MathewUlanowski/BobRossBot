@@ -29,7 +29,7 @@
 ### Production Readiness
 - [ ] Add logging for better debugging and monitoring.
 - [ ] Implement error handling for API calls and bot events.
-- [ ] Write unit tests for critical functionality.
+- [x] Write unit tests for critical functionality. (Added `openaiHelper` unit tests and Jest setup)
 - [ ] Set up CI/CD pipeline for automated testing and deployment.
 
 ## Notes
