@@ -13,16 +13,16 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Use only the Guilds intent since we're using slash commands (no Message Content intent required)
+// Start health server early so health probe works even if Discord login is not configured
+try {
+  const port = Number(process.env.PORT) || 3000;
+  startHealthServer(port);
+} catch (err) {
+  logger.error(`Failed to start health server: ${String(err)}`);
+}
+
 client.once('ready', () => {
   logger.info('Bob Ross Bot is online!');
-
-  // start health server for readiness/liveness probes
-  try {
-    const port = Number(process.env.PORT) || 3000;
-    startHealthServer(port);
-  } catch (err) {
-    logger.error(`Failed to start health server: ${String(err)}`);
-  }
 
   // Register slash command `/bobross`.
   // If GUILD_ID is provided, register it to that guild for immediate availability (recommended for testing).
