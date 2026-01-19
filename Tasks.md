@@ -24,17 +24,10 @@
 - [x] Create a Helm chart for easier deployment.
 - [x] Test deployment on a local Kubernetes cluster. ✅
 - [x] Build Docker image and push to container registry. (CI deploy workflow will build and push on merge to `main`)
-- [ ] Deploy Helm chart to production cluster (create namespace `bobrossbot`). (I will add a manual `workflow_dispatch` deploy workflow and docs)
+- [ ] Deploy Helm chart to production cluster (create namespace `bobrossbot`).
 - [ ] Prepare production deployment steps and secret setup; include non-disruptive rollout guidance.
-- [ ] Add manual production deploy workflow (`workflow_dispatch`) to allow controlled rollouts via GitHub Actions.
-- [x] Restore & extend deploy workflow: added PR validation (build + helm lint/template) and safe deploy (PR #26)
-- [ ] Rewrite workflows: replace all workflows with minimal CI (tests+lint) and deploy (PR #27)
-
-> Automated trigger: kicking off a manual deploy to Hetzner via GitHub Actions at 2026-01-18 20:xx UTC (temporary, will be reverted)
-- [x] Remove stale secret: `AZUREAPPSERVICE_PUBLISHPROFILE_BFD2A617ECF44653BB19F0D2DB756DEE` (deleted from repo)
 - [ ] Add Kubernetes `readiness` and `liveness` probes (helm templates)
-- [x] Add CI job to run tests on PRs (prevent merging failing changes)
-- [x] Add CI job to run lint on PRs (prevent merging style issues)
+- [ ] Add CI job to run tests on PRs (prevent merging failing changes)
 - [ ] Implement OpenAI retry/backoff for transient errors (429/5xx)
 
 ### Production Readiness
@@ -43,7 +36,6 @@
 - [x] Write unit tests for critical functionality. (Added `openaiHelper` unit tests and Jest setup)
 - [ ] Set up CI/CD pipeline for automated testing and deployment.
 - [x] Remove tracked coverage artifacts from repository (cleaned up coverage/ files)
-- [ ] Add CI secrets to GitHub Actions (REGISTRY_URL, REGISTRY_USERNAME, REGISTRY_PASSWORD, KUBE_CONFIG, DISCORD_TOKEN, OPENAI_API_KEY).
 
 ## Notes
 - Replace placeholders in `.env` and Kubernetes secrets with actual tokens before deployment.
