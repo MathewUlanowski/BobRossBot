@@ -1,116 +1,76 @@
-name: Deploy (production)
+name: Deploy
 
 on:
-  workflow_dispatch:
   workflow_run:
-    workflows: ["Publish Docker Images"]
+    workflows: ["build-pipeline"]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Override image tag at manual dispatch'
+        required: false
+      helm_values:
+        description: 'Path to values file (e.g., helm/values.prod.yaml)'
+        required: false
+      helm_set:
+        description: 'Additional --set overrides (e.g., image.pullPolicy=IfNotPresent)'
+        required: false
 
 permissions:
   contents: read
-  packages: write
-  id-token: write
+  packages: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Required repository variables (set these in Repo Settings → Variables)
+  REGISTRY_URL: ${{ vars.REGISTRY_URL }}
+  REGISTRY_USERNAME: ${{ vars.REGISTRY_USERNAME }}
+  REGISTRY_PASSWORD: ${{ vars.REGISTRY_PASSWORD }}
+  KUBE_CONFIG_B64: ${{ vars.KUBE_CONFIG_B64 }}
+  # Optional repository variables to control which image and k8s target to deploy
+  IMAGE_NAME: ${{ vars.IMAGE_NAME }}    # e.g. myorg/bobrossbot
+  IMAGE_TAG: ${{ vars.IMAGE_TAG }}      # if not set, will fallback to the build pipeline's tag or commit
+  K8S_NAMESPACE: ${{ vars.K8S_NAMESPACE }}
+  K8S_DEPLOYMENT: ${{ vars.K8S_DEPLOYMENT }}
+  K8S_CONTAINER_NAME: ${{ vars.K8S_CONTAINER_NAME }}
+  # Optional Helm options
+  HELM_RELEASE: ${{ vars.HELM_RELEASE }}
+  HELM_EXTRA_ARGS: ${{ vars.HELM_EXTRA_ARGS }}
 
 jobs:
   deploy:
-    name: Build, push image and deploy
+    # Run either when build-pipeline completed successfully, or when manually dispatched
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Determine registry and tag
-        id: setvars
-        run: |
-          if [ -n "${{ secrets.REGISTRY_URL }}" ]; then
-            echo "REGISTRY=${{ secrets.REGISTRY_URL }}" >> $GITHUB_ENV
-            echo "HAS_REGISTRY=true" >> $GITHUB_ENV
-            echo "IMAGE=${{ secrets.REGISTRY_URL }}/bobrossbot" >> $GITHUB_ENV
-          else
-            # fallback to GHCR when no registry specified
-            REG_LOWER=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
-            echo "IMAGE=ghcr.io/${REG_LOWER}" >> $GITHUB_ENV
-            echo "HAS_REGISTRY=false" >> $GITHUB_ENV
-          fi
-          # deterministic tag: short sha on main, otherwise run id
-          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
-            SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
-            echo "IMAGE_TAG=latest" >> $GITHUB_ENV
-          else
-            echo "IMAGE_TAG=v${GITHUB_RUN_ID}" >> $GITHUB_ENV
-          fi
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to registry (only if credentials present)
-        if: ${{ secrets.REGISTRY_URL && secrets.DOCKER_USERNAME && secrets.DOCKER_PASSWORD }}
-        uses: docker/login-action@v2
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
-          registry: ${{ secrets.REGISTRY_URL }}
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          registry: ${{ vars.REGISTRY_URL || secrets.REGISTRY_URL || 'ghcr.io' }}
+          username: ${{ vars.REGISTRY_USERNAME || secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Build and optionally push Docker image
-        uses: docker/build-push-action@v4
+      - name: Deploy via Helm Action
+        uses: deliverybot/helm@v1
         with:
-          context: .
-          file: Dockerfile
-          push: ${{ secrets.REGISTRY_URL && secrets.DOCKER_USERNAME && secrets.DOCKER_PASSWORD }}
-          tags: ${{ env.IMAGE }}:${{ env.IMAGE_TAG }}
-          target: runtime
+          release: ${{ vars.HELM_RELEASE || vars.K8S_DEPLOYMENT || github.repository }}
+          namespace: ${{ vars.K8S_NAMESPACE || 'default' }}
+          chart: ./helm
+          values: |
+            image:
+              repository: ${{ vars.REGISTRY_URL || secrets.REGISTRY_URL }}/{{ vars.IMAGE_NAME }}
+              tag: ${{ github.event.inputs.image_tag || vars.IMAGE_TAG || github.event.workflow_run.head_sha || 'latest' }}
+          value-files: '["./helm/values.yaml"]'
+          token: ${{ github.token }}
+        env:
+          KUBECONFIG_FILE: ${{ secrets.KUBECONFIG }}
 
-      - name: Set up Helm & kubectl
-        uses: azure/setup-helm@v1
-
-      - name: Helm lint (inline)
-        run: helm lint ./helm
-
-      - name: Helm template (render only) and verify probes/resources (inline)
-        run: |
-          out=$(mktemp)
-          helm template ./helm --values ./helm/values.yaml > "$out"
-          if ! grep -q "readinessProbe:" "$out"; then
-            echo "ERROR: rendered templates missing readinessProbe"
-            cat "$out"
-            exit 2
-          fi
-          if ! grep -q "livenessProbe:" "$out"; then
-            echo "ERROR: rendered templates missing livenessProbe"
-            cat "$out"
-            exit 3
-          fi
-          if ! grep -q "resources:" "$out"; then
-            echo "ERROR: rendered templates missing resources"
-            cat "$out"
-            exit 4
-          fi
-          echo "Helm template verification passed: probes and resources present"
-
-      - name: Configure kubeconfig (if provided)
-        run: |
-          if [ -n "${{ secrets.KUBE_CONFIG }}" ]; then
-            echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
-            echo "Kubeconfig written to $PWD/kubeconfig"
-            export KUBECONFIG=$PWD/kubeconfig
-          else
-            echo "KUBE_CONFIG secret not set; skipping kubeconfig setup"
-          fi
-
-      - name: Deploy Helm chart to cluster (if kubeconfig present)
-        run: |
-          if [ -n "${{ secrets.KUBE_CONFIG }}" ]; then
-            export KUBECONFIG=$PWD/kubeconfig
-            helm upgrade --install bobrossbot ./helm \
-              --namespace bobrossbot --create-namespace \
-              --set image.repository=${{ env.IMAGE }} \
-              --set image.tag=${{ env.IMAGE_TAG }} \
-              --atomic --wait --timeout 5m
-            # Wait for deployments to roll out
-            kubectl rollout status deployment -l app=bobrossbot -n bobrossbot --timeout=3m
-          else
-            echo "KUBE_CONFIG secret not set; skipping Helm deploy"
-            exit 0
-          fi
-
+      - name: Success
+        run: echo "Helm deploy succeeded ✅"
