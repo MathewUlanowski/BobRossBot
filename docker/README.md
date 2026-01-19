@@ -16,11 +16,15 @@ This folder documents local build & verification steps used for the `task/docker
    - `docker ps` to see running container
    - `docker logs <container-id>` to inspect startup logs
 4. Health check (should return 200):
-   - `curl -f http://localhost:3000/health` or `http --check-status GET http://localhost:3000/health`
+   - `curl -f http://localhost:3000/healthz` or `http --check-status GET http://localhost:3000/healthz` (alias `/health` also supported)
 
 ## Image size (before/after)
-- Before: run `docker build -t bobrossbot:before -f Dockerfile.old .` and check `docker images bobrossbot`
-- After: run `docker build -t bobrossbot:after .` and check `docker images bobrossbot`
+- Before: `docker build -t bobrossbot:before .` then: `docker images --format "{{.Repository}}:{{.Tag}} {{.Size}}" | grep bobrossbot`
+- After: `docker build -t bobrossbot:pr-<id> .` then run the same `docker images` command and compare sizes
+
+**Replace the size text below after you run the builds:**
+- Before: **REPLACE_WITH_BEFORE_SIZE**
+- After: **REPLACE_WITH_AFTER_SIZE**
 
 ## Notes & Security
 - Do not commit `.env` or secret values. This repo previously contained a committed `.env` and k8s secrets; those values were sanitized in this branch. If your secrets were leaked, rotate them immediately.

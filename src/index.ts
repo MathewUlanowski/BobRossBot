@@ -10,7 +10,7 @@ dotenv.config();
 
 // Use only the Guilds intent since we're using slash commands (no Message Content intent required)
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai: any = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : undefined;
 
 // Use only the Guilds intent since we're using slash commands (no Message Content intent required)
 // Start health server early so health probe works even if Discord login is not configured
@@ -64,7 +64,13 @@ client.on('interactionCreate', async (interaction) => {
   await interaction.deferReply();
 
   try {
-    const response = await callWithRetry(() =>
+    if (!openai) {
+      logger.warn('OpenAI API key not configured; returning simulation message.');
+      await interaction.editReply("OpenAI is not configured in this environment; running in simulation mode.");
+      return;
+    }
+
+    const response: any = await callWithRetry(() =>
       openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
@@ -87,6 +93,10 @@ client.on('interactionCreate', async (interaction) => {
     await interaction.editReply('Oops, something went wrong while painting this response.');
   }
 });
-client
-  .login(process.env.DISCORD_TOKEN)
-  .catch((err) => logger.error(`Failed to login: ${String(err)}`));
+if (process.env.DISCORD_TOKEN) {
+  client
+    .login(process.env.DISCORD_TOKEN)
+    .catch((err) => logger.error(`Failed to login: ${String(err)}`));
+} else {
+  logger.warn('Not attempting Discord login (DISCORD_TOKEN missing).');
+}

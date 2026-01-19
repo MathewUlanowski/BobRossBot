@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1768837775783" clover="3.2.0">
-  <project timestamp="1768837775784" name="All files">
+<coverage generated="1768838311645" clover="3.2.0">
+  <project timestamp="1768838311645" name="All files">
     <metrics statements="37" coveredstatements="35" conditionals="31" coveredconditionals="23" methods="4" coveredmethods="4" elements="72" coveredelements="62" complexity="0" loc="37" ncloc="37" packages="1" files="3" classes="3"/>
     <file name="logger.ts" path="D:\Projects\BobRossBot2.0\src\logger.ts">
       <metrics statements="9" coveredstatements="8" conditionals="3" coveredconditionals="2" methods="1" coveredmethods="1"/>

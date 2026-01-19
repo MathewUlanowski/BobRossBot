@@ -1,15 +1,40 @@
+# Node dependencies
 node_modules
+
+# Build artifacts
 dist
 coverage
+
+# Logs
 logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
 .git
+
+# Editor files
 .vscode
+.idea
+
+# Docker-related
 Dockerfile
 .dockerignore
+
+# Local env files (do not commit secrets)
 .env
-helm/values.secret.yaml
+.env.*
+
+# Kubernetes / Helm secret examples
 k8s/secrets.yaml
+helm/values.secret.yaml
 
 # Optional local files
 *.local
-*.log
+
