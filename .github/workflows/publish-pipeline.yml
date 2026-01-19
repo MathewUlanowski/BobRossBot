@@ -55,7 +55,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push image (tags: sha and latest)
+      - name: "Build and push image (tags: sha and latest)"
         uses: docker/build-push-action@v4
         with:
           context: .
