@@ -75,7 +75,7 @@ jobs:
           file: Dockerfile
           push: false
           tags: ${{ env.TAG }}
-          target: release
+          target: runtime
 
       - name: Save image to tar.gz
         run: |
@@ -103,7 +103,7 @@ jobs:
           file: Dockerfile
           push: true
           tags: ${{ env.TAG }}
-          target: release
+          target: runtime
 
 
   helm:
