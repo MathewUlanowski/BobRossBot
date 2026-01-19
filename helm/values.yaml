@@ -28,12 +28,14 @@ resources:
 
 probes:
   readiness:
+    enabled: true
     path: /health
     port: 3000
     initialDelaySeconds: 10
     periodSeconds: 10
     failureThreshold: 3
   liveness:
+    enabled: true
     path: /health
     port: 3000
     initialDelaySeconds: 30

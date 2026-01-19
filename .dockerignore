@@ -1,0 +1,15 @@
+node_modules
+dist
+coverage
+logs
+.git
+.vscode
+Dockerfile
+.dockerignore
+.env
+helm/values.secret.yaml
+k8s/secrets.yaml
+
+# Optional local files
+*.local
+*.log
