@@ -128,7 +128,11 @@ jobs:
         run: helm lint helm
 
       - name: Helm template (default) + dry-run
-        run: helm template helm --values helm/values.yaml | kubectl apply --dry-run=client --validate=false -f -
+        env:
+          KUBECONFIG: /dev/null
+        run: helm template helm --values helm/values.yaml | kubectl --kubeconfig=/dev/null apply --dry-run=client --validate=false -f -
 
       - name: Helm template (staging) + dry-run
-        run: helm template helm --values helm/values.staging.yaml | kubectl apply --dry-run=client --validate=false -f -
+        env:
+          KUBECONFIG: /dev/null
+        run: helm template helm --values helm/values.staging.yaml | kubectl --kubeconfig=/dev/null apply --dry-run=client --validate=false -f -
