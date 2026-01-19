@@ -3,7 +3,8 @@ import logger from './logger';
 
 export function startHealthServer(port = 3000) {
   const server = http.createServer((req, res) => {
-    if (req.method === 'GET' && req.url === '/health') {
+    // Support both /health and /healthz for readiness/liveness probes
+    if (req.method === 'GET' && (req.url === '/health' || req.url === '/healthz')) {
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       res.end('ok');
     } else {

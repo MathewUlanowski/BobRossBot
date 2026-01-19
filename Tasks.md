@@ -28,12 +28,13 @@
 - [ ] Prepare production deployment steps and secret setup; include non-disruptive rollout guidance.
 - [ ] Add Kubernetes `readiness` and `liveness` probes (helm templates)
 - [ ] Add CI job to run tests on PRs (prevent merging failing changes)
-- [ ] Implement OpenAI retry/backoff for transient errors (429/5xx)
+- [x] Implement OpenAI retry/backoff for transient errors (429/5xx)
 
 ### Production Readiness
-- [ ] Add logging for better debugging and monitoring.
+- [x] Add logging for better debugging and monitoring.
 - [ ] Implement error handling for API calls and bot events.
 - [x] Write unit tests for critical functionality. (Added `openaiHelper` unit tests and Jest setup)
+- [x] Add `/healthz` and lightweight health server for readiness/liveness probes (see `src/health.ts`)
 - [ ] Set up CI/CD pipeline for automated testing and deployment.
 - [x] Remove tracked coverage artifacts from repository (cleaned up coverage/ files)
 
