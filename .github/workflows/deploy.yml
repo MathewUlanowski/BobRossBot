@@ -1,5 +1,5 @@
 name: Deploy (production)
-# debug: trigger-test run from branch task/deploy-troubleshoot-1
+# debug: troubleshoot deploy workflow (fresh branch)
 
 on:
   push:
