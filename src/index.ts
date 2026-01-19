@@ -10,7 +10,9 @@ dotenv.config();
 
 // Use only the Guilds intent since we're using slash commands (no Message Content intent required)
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-const openai: any = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : undefined;
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+}) : undefined;
 
 // Use only the Guilds intent since we're using slash commands (no Message Content intent required)
 // Start health server early so health probe works even if Discord login is not configured
@@ -65,24 +67,26 @@ client.on('interactionCreate', async (interaction) => {
 
   try {
     if (!openai) {
-      logger.warn('OpenAI API key not configured; returning simulation message.');
-      await interaction.editReply("OpenAI is not configured in this environment; running in simulation mode.");
-      return;
-    }
+        logger.warn('OpenAI API key not configured; returning simulation message.');
+        await interaction.editReply(
+          'OpenAI is not configured in this environment; running in simulation mode.',
+        );
+        return;
+      }
 
-    const response: any = await callWithRetry(() =>
-      openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are Bob Ross, the painter. Respond in a calm and encouraging tone.',
-          },
-          { role: 'user', content: prompt },
-        ],
-        max_tokens: 500,
-      }),
-    );
+      const response = await callWithRetry(() =>
+        openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are Bob Ross, the painter. Respond in a calm and encouraging tone.',
+            },
+            { role: 'user', content: prompt },
+          ],
+          max_tokens: 500,
+        }),
+      );
     const botReply =
       response.choices?.[0]?.message?.content ||
       'Oh no, the happy little clouds are blocking my thoughts.';
