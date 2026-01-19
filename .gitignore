@@ -1,10 +1,10 @@
 node_modules/
 dist/
-.env
+*.env
 logs/
 # Kubernetes and Helm secrets
-k8s/secrets.yaml
 helm/values.secret.yaml
+# (k8s/ manifests removed — use the Helm chart in ./helm for deployments)
 
 # Editor and OS files
 .vscode/

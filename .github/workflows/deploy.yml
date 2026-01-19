@@ -15,7 +15,6 @@ jobs:
   deploy:
     name: Build, push image and deploy
     runs-on: ubuntu-latest
-    environment: production
 
     steps:
       - name: Checkout repository

@@ -1,15 +1,17 @@
+# Local overrides for development — mirrors `values.yaml` but uses a local Docker image
+# Build locally with: `docker build -t bobrossbot:latest .` and ensure Docker Desktop images are available to the cluster.
 replicaCount: 1
 
 image:
-  repository: ghcr.io/MathewUlanowski/bobrossbot
+  repository: bobrossbot
   tag: latest
-  pullPolicy: IfNotPresent
+  pullPolicy: Never
 
 service:
-  type: ClusterIP
+  type: NodePort
   port: 80
-  # Optional: when using `NodePort` you can set a specific nodePort (30000-32767)
-  nodePort: null
+  # Use a nodePort in the 30000-32767 range to expose the service on the host via Docker Desktop
+  nodePort: 30080
 
 resources:
   limits:
@@ -38,10 +40,3 @@ probes:
 podDisruptionBudget:
   maxUnavailable: 1
 
-ingress:
-  enabled: false
-  host: ""
-  # TLS secret name to reference a Kubernetes TLS secret containing cert/key
-  tlsSecretName: ""
-  # Optional extra annotations for Ingress controller (e.g. nginx cert management)
-  annotations: {}
