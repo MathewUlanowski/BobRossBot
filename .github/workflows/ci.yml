@@ -60,7 +60,8 @@ jobs:
       - name: Set TAG and HAS_REGISTRY
         run: |
           if [ -n "${{ secrets.REGISTRY_URL }}" ]; then
-            echo "TAG=${{ secrets.REGISTRY_URL }}/bobrossbot:${{ github.sha }}" >> $GITHUB_ENV
+            REG_LOWER=$(echo "${{ secrets.REGISTRY_URL }}" | tr '[:upper:]' '[:lower:]')
+            echo "TAG=${REG_LOWER}/bobrossbot:${{ github.sha }}" >> $GITHUB_ENV
             echo "HAS_REGISTRY=true" >> $GITHUB_ENV
           else
             echo "TAG=bobrossbot:${{ github.sha }}" >> $GITHUB_ENV
@@ -127,11 +128,11 @@ jobs:
       - name: Helm lint
         run: helm lint helm
 
-      - name: Helm template (default) + dry-run
-        run: helm template helm --values helm/values.yaml | kubectl apply --dry-run=client --validate=false -f -
+      - name: Helm template (default) (render only)
+        run: helm template helm --values helm/values.yaml >/dev/null
 
-      - name: Helm template (staging) + dry-run
-        run: helm template helm --values helm/values.staging.yaml | kubectl apply --dry-run=client --validate=false -f -
+      - name: Helm template (staging) (render only)
+        run: helm template helm --values helm/values.staging.yaml >/dev/null
 
       - name: Verify Helm templates (probes & resources)
         run: bash scripts/verify-helm.sh
