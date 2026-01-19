@@ -67,7 +67,7 @@ jobs:
             echo "KUBE_CONFIG secret not set; skipping Helm deploy"
           fi
 
-      - name: Hetzner: package chart and copy to remote
+      - name: "Hetzner: package chart and copy to remote"
         run: |
           if [ -n "${{ secrets.HETZNER_HOST }}" ]; then
             mkdir -p ~/.ssh
@@ -80,7 +80,7 @@ jobs:
             echo "HETZNER_HOST not set; skipping Hetzner deploy"
           fi
 
-      - name: Hetzner: remote deploy with Helm
+      - name: "Hetzner: remote deploy with Helm"
         run: |
           if [ -n "${{ secrets.HETZNER_HOST }}" ]; then
             ssh -o StrictHostKeyChecking=yes "${{ secrets.HETZNER_SSH_USER:-root }}@${{ secrets.HETZNER_HOST }}" 'mkdir -p ~/helm-deploy && tar -xzf ~/chart.tar.gz -C ~/helm-deploy && helm upgrade --install bobrossbot ~/helm-deploy/helm --namespace bobrossbot --create-namespace --set image.repository=${IMAGE} --set image.tag=${IMAGE_TAG} --atomic --wait --timeout 5m && rm -rf ~/chart.tar.gz ~/helm-deploy'
