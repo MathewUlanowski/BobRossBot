@@ -93,4 +93,12 @@ If you'd like, I can also add an interactive PowerShell wrapper that prompts for
 - Rotate or remove secrets if you suspect exposure.
 
 ---
+
+## Helm chart verification ✅
+
+This repository now includes a simple verification script `scripts/verify-helm.sh` and a CI job that runs `helm lint` plus `helm template | kubectl apply --dry-run=client --validate=false` against `helm/values.yaml` and `helm/values.staging.yaml`.
+
+- The verification script ensures the rendered templates include `readinessProbe`, `livenessProbe`, and `resources`.
+- The CI job runs on PRs and will fail if these checks don't pass.
+
 If you want, I can also automate these steps with a short PowerShell script added to `scripts/` and a `README` example to test the deploy step from your machine. Want me to add that script and a PR? (I can just add it directly.)

@@ -132,3 +132,6 @@ jobs:
 
       - name: Helm template (staging) + dry-run
         run: helm template helm --values helm/values.staging.yaml | kubectl apply --dry-run=client --validate=false -f -
+
+      - name: Verify Helm templates (probes & resources)
+        run: bash scripts/verify-helm.sh

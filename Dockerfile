@@ -26,8 +26,8 @@ USER node
 
 EXPOSE 3000
 
-# Lightweight healthcheck using the bundled node binary
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s CMD node -e "require('http').get('http://127.0.0.1:3000/health',res=>{process.exit(res.statusCode===200?0:1)}).on('error',()=>process.exit(1))"
+# Lightweight healthcheck using the bundled node binary (use /healthz)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s CMD node -e "require('http').get('http://127.0.0.1:3000/healthz',res=>{process.exit(res.statusCode===200?0:1)}).on('error',()=>process.exit(1))"
 
 # Use the compiled entrypoint for faster startup
 CMD ["node", "dist/index.js"]
