@@ -1,20 +1,8 @@
 name: Deploy
 
 on:
-  workflow_run:
-    workflows: ["build-pipeline"]
-    types: [completed]
-  workflow_dispatch:
-    inputs:
-      image_tag:
-        description: 'Override image tag at manual dispatch'
-        required: false
-      helm_values:
-        description: 'Path to values file (e.g., helm/values.prod.yaml)'
-        required: false
-      helm_set:
-        description: 'Additional --set overrides (e.g., image.pullPolicy=IfNotPresent)'
-        required: false
+  push:
+    branches: ["main"]
 
 permissions:
   contents: read
