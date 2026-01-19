@@ -28,12 +28,12 @@ Dockerfile
 .dockerignore
 
 # Local env files (do not commit secrets)
-.env
+*.env
 .env.*
 
 # Kubernetes / Helm secret examples
-k8s/secrets.yaml
 helm/values.secret.yaml
+# (k8s/ manifests removed — use the Helm chart in ./helm for deployments)
 
 # Optional local files
 *.local

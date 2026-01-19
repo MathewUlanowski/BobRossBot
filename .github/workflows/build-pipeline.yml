@@ -3,6 +3,13 @@ name: Build Pipeline
 # Validates Dockerfile builds and surface basic container runtime issues on PRs
 on:
   pull_request:
+    branches: ["*"]
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   build:
@@ -13,41 +20,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build image (load to runner)
-        uses: docker/build-push-action@v4
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha
+            type=ref,event=branch
+            type=ref,event=tag
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # Only login when publishing (push events to main/tags)
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Build on PRs and pushes; only push on push events
+      - name: Build (and push on main/tags)
+        uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile
-          push: false
-          load: true
-          tags: bobrossbot:${{ github.sha }}
-          target: runtime
-
-      - name: Run container and check /health
-        run: |
-          set -euo pipefail
-          TAG=bobrossbot:${{ github.sha }}
-          docker run -d --name bobrossbot-test -p 3000:3000 "$TAG" || docker ps -a
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            echo "Attempt $i: checking /health"
-            if curl --fail http://localhost:3000/health; then echo 'OK' && break; fi
-            sleep 5
-          done
-          docker logs bobrossbot-test || true
-          docker rm -f bobrossbot-test || true
-
-      - name: Save image artifact
-        run: |
-          docker save bobrossbot:${{ github.sha }} | gzip > image-${{ github.sha }}.tar.gz
-
-      - name: Upload image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image-${{ github.sha }}
-          path: image-${{ github.sha }}.tar.gz
+          file: ./Dockerfile
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
