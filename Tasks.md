@@ -27,8 +27,14 @@
 - [ ] Deploy Helm chart to production cluster (create namespace `bobrossbot`).
 - [ ] Prepare production deployment steps and secret setup; include non-disruptive rollout guidance.
 - [ ] Add Kubernetes `readiness` and `liveness` probes (helm templates)
-- [ ] Add CI job to run tests on PRs (prevent merging failing changes)
+- [x] Add CI job to run tests on PRs (prevent merging failing changes)
 - [ ] Implement OpenAI retry/backoff for transient errors (429/5xx)
+
+### CI / CD
+- [x] Add `build-pipeline` to build & validate Docker images on PRs
+- [x] Add `test-pipeline` to run unit tests on PRs
+- [ ] Add `publish-pipeline` to publish images to registry on merge to `main`
+- [ ] Add `deploy-pipeline` to deploy via Helm after successful publish
 
 ### Production Readiness
 - [ ] Add logging for better debugging and monitoring.
