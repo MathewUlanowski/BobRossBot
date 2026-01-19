@@ -11,7 +11,7 @@ permissions:
   id-token: write
 
 env:
-  IMAGE: ghcr.io/${{ toLower(github.repository) }}
+  IMAGE: ghcr.io/${{ github.repository }}
   IMAGE_TAG: ${{ github.ref == 'refs/heads/main' && 'latest' || format('v{0}', github.run_id) }}
 
 jobs:
@@ -75,7 +75,9 @@ jobs:
             echo "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
             chmod 600 ~/.ssh/id_ed25519
             tar -czf chart.tar.gz helm
-            scp -o StrictHostKeyChecking=yes chart.tar.gz "${{ secrets.HETZNER_SSH_USER:-root }}@${{ secrets.HETZNER_HOST }}:~/chart.tar.gz"
+            SSH_USER="${{ secrets.HETZNER_SSH_USER }}"
+            SSH_USER="${SSH_USER:-root}"
+            scp -o StrictHostKeyChecking=yes chart.tar.gz "${SSH_USER}@${{ secrets.HETZNER_HOST }}:~/chart.tar.gz"
           else
             echo "HETZNER_HOST not set; skipping Hetzner deploy"
           fi
@@ -83,7 +85,9 @@ jobs:
       - name: "Hetzner: remote deploy with Helm"
         run: |
           if [ -n "${{ secrets.HETZNER_HOST }}" ]; then
-            ssh -o StrictHostKeyChecking=yes "${{ secrets.HETZNER_SSH_USER:-root }}@${{ secrets.HETZNER_HOST }}" 'mkdir -p ~/helm-deploy && tar -xzf ~/chart.tar.gz -C ~/helm-deploy && helm upgrade --install bobrossbot ~/helm-deploy/helm --namespace bobrossbot --create-namespace --set image.repository=${IMAGE} --set image.tag=${IMAGE_TAG} --atomic --wait --timeout 5m && rm -rf ~/chart.tar.gz ~/helm-deploy'
+            SSH_USER="${{ secrets.HETZNER_SSH_USER }}"
+            SSH_USER="${SSH_USER:-root}"
+            ssh -o StrictHostKeyChecking=yes "${SSH_USER}@${{ secrets.HETZNER_HOST }}" 'mkdir -p ~/helm-deploy && tar -xzf ~/chart.tar.gz -C ~/helm-deploy && helm upgrade --install bobrossbot ~/helm-deploy/helm --namespace bobrossbot --create-namespace --set image.repository=${IMAGE} --set image.tag=${IMAGE_TAG} --atomic --wait --timeout 5m && rm -rf ~/chart.tar.gz ~/helm-deploy'
           else
             echo "HETZNER_HOST not set; skipping Hetzner deploy"
           fi
