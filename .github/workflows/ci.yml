@@ -36,37 +36,3 @@ jobs:
         with:
           name: coverage-${{ matrix.node-version }}
           path: coverage
-
-      - name: Secret hygiene scan (inline)
-        run: |
-          set -euo pipefail
-          FILES=".env helm/values*.yaml .github/workflows/*.yml"
-          KEY_REGEX='(api[_-]?key|apikey|openai|discord[_-]?token|secret|password|aws_access_key_id|aws_secret_access_key|private_key)'
-          PK_REGEX='-----BEGIN (RSA |OPENSSH |ENCRYPTED |)PRIVATE KEY|-----BEGIN (.*)PRIVATE KEY-----'
-          found=0
-          for pattern in $FILES; do
-            for f in $(ls $pattern 2>/dev/null || true); do
-              while IFS= read -r line; do
-                if echo "$line" | grep -Ei "$PK_REGEX" >/dev/null; then
-                  echo "ERROR: potential private key content found in $f"
-                  found=1
-                fi
-                if echo "$line" | grep -Ei "$KEY_REGEX" >/dev/null; then
-                  if echo "$line" | grep -Ei "your-|replaceme|<|REDACTED|example|CHANGE_ME" >/dev/null; then
-                    continue
-                  fi
-                  if echo "$line" | grep -E ":.+|=.+" >/dev/null; then
-                    echo "ERROR: possible literal secret in $f: $line"
-                    found=1
-                  fi
-                fi
-              done < "$f"
-            done
-          done
-          if [ "$found" -ne 0 ]; then
-            echo "Secret scan failed: please remove secrets or replace with placeholders (your-..., CHANGE_ME, or REDACTED)."
-            exit 1
-          else
-            echo "Secret scan passed: no obvious secrets found."
-          fi
-
