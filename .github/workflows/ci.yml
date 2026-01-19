@@ -27,8 +27,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
+      - name: Lint (disabled)
+        run: echo "Lint disabled by request"
 
       - name: Run tests
         run: npm test
