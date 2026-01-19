@@ -87,7 +87,7 @@ jobs:
           path: image-${{ github.sha }}.tar.gz
 
       - name: Login to registry (only if credentials present)
-        if: ${{ secrets.DOCKER_USERNAME && secrets.DOCKER_PASSWORD && secrets.REGISTRY_URL }}
+        if: ${{ env.HAS_REGISTRY == 'true' }}
         uses: docker/login-action@v2
         with:
           registry: ${{ secrets.REGISTRY_URL }}
@@ -95,7 +95,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Push Docker image (only if logged in)
-        if: ${{ secrets.DOCKER_USERNAME && secrets.DOCKER_PASSWORD && secrets.REGISTRY_URL }}
+        if: ${{ env.HAS_REGISTRY == 'true' }}
         uses: docker/build-push-action@v4
         with:
           context: .
