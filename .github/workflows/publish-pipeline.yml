@@ -1,0 +1,74 @@
+name: Publish Docker Images
+
+# Runs only on main. Publishes built images to registry (preferred: REGISTRY_URL + DOCKER_USERNAME/DOCKER_PASSWORD). Falls back to GHCR using GITHUB_TOKEN.
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  publish:
+    name: Build & Push images
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Determine registry and tags
+        id: vars
+        run: |
+          if [ -n "${{ secrets.REGISTRY_URL }}" ]; then
+            echo "IMAGE=${{ secrets.REGISTRY_URL }}/bobrossbot" >> $GITHUB_ENV
+            echo "USE_SECRET_REG=true" >> $GITHUB_ENV
+          else
+            REG_LOWER=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+            echo "IMAGE=ghcr.io/${REG_LOWER}" >> $GITHUB_ENV
+            echo "USE_SECRET_REG=false" >> $GITHUB_ENV
+          fi
+          SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+          echo "IMAGE_TAG=${SHORT_SHA}" >> $GITHUB_ENV
+
+      - name: Login to registry (secret)
+        if: ${{ secrets.REGISTRY_URL && secrets.DOCKER_USERNAME && secrets.DOCKER_PASSWORD }}
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ secrets.REGISTRY_URL }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Login to GHCR (fallback)
+        if: ${{ !secrets.REGISTRY_URL }}
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image (tags: sha and latest)
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ env.IMAGE_TAG }}
+            ${{ env.IMAGE }}:latest
+          target: runtime
+
+      - name: Upload image tags
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-image-tags
+          path: |
+            ./

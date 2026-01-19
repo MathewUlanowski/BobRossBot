@@ -1,66 +1,105 @@
 name: Deploy (production)
-# debug: troubleshoot deploy workflow (fresh branch)
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Publish Docker Images"]
+    types: [completed]
 
 permissions:
   contents: read
   packages: write
   id-token: write
 
-env:
-  IMAGE: ghcr.io/${{ github.repository }}
-  IMAGE_TAG: ${{ github.ref == 'refs/heads/main' && 'latest' || format('v{0}', github.run_id) }}
-
 jobs:
   deploy:
     name: Build, push image and deploy
     runs-on: ubuntu-latest
+    environment: production
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set IMAGE (lowercased)
+      - name: Determine registry and tag
+        id: setvars
         run: |
-          REG_LOWER=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
-          echo "IMAGE=ghcr.io/${REG_LOWER}" >> $GITHUB_ENV
+          if [ -n "${{ secrets.REGISTRY_URL }}" ]; then
+            echo "REGISTRY=${{ secrets.REGISTRY_URL }}" >> $GITHUB_ENV
+            echo "HAS_REGISTRY=true" >> $GITHUB_ENV
+            echo "IMAGE=${{ secrets.REGISTRY_URL }}/bobrossbot" >> $GITHUB_ENV
+          else
+            # fallback to GHCR when no registry specified
+            REG_LOWER=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+            echo "IMAGE=ghcr.io/${REG_LOWER}" >> $GITHUB_ENV
+            echo "HAS_REGISTRY=false" >> $GITHUB_ENV
+          fi
+          # deterministic tag: short sha on main, otherwise run id
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+            echo "IMAGE_TAG=latest" >> $GITHUB_ENV
+          else
+            echo "IMAGE_TAG=v${GITHUB_RUN_ID}" >> $GITHUB_ENV
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GitHub Container Registry
+      - name: Login to registry (only if credentials present)
+        if: ${{ secrets.REGISTRY_URL && secrets.DOCKER_USERNAME && secrets.DOCKER_PASSWORD }}
         uses: docker/login-action@v2
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ${{ secrets.REGISTRY_URL }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and push Docker image
+      - name: Build and optionally push Docker image
         uses: docker/build-push-action@v4
         with:
-          push: true
+          context: .
+          file: Dockerfile
+          push: ${{ secrets.REGISTRY_URL && secrets.DOCKER_USERNAME && secrets.DOCKER_PASSWORD }}
           tags: ${{ env.IMAGE }}:${{ env.IMAGE_TAG }}
+          target: runtime
 
-      - name: Set up Helm
-        uses: azure/setup-helm@v3
+      - name: Set up Helm & kubectl
+        uses: azure/setup-helm@v1
 
-      - name: Helm lint
+      - name: Helm lint (inline)
         run: helm lint ./helm
 
-      - name: Configure kubeconfig
+      - name: Helm template (render only) and verify probes/resources (inline)
+        run: |
+          out=$(mktemp)
+          helm template ./helm --values ./helm/values.yaml > "$out"
+          if ! grep -q "readinessProbe:" "$out"; then
+            echo "ERROR: rendered templates missing readinessProbe"
+            cat "$out"
+            exit 2
+          fi
+          if ! grep -q "livenessProbe:" "$out"; then
+            echo "ERROR: rendered templates missing livenessProbe"
+            cat "$out"
+            exit 3
+          fi
+          if ! grep -q "resources:" "$out"; then
+            echo "ERROR: rendered templates missing resources"
+            cat "$out"
+            exit 4
+          fi
+          echo "Helm template verification passed: probes and resources present"
+
+      - name: Configure kubeconfig (if provided)
         run: |
           if [ -n "${{ secrets.KUBE_CONFIG }}" ]; then
             echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
             echo "Kubeconfig written to $PWD/kubeconfig"
+            export KUBECONFIG=$PWD/kubeconfig
           else
             echo "KUBE_CONFIG secret not set; skipping kubeconfig setup"
           fi
 
-      - name: Deploy Helm chart to prod
+      - name: Deploy Helm chart to cluster (if kubeconfig present)
         run: |
           if [ -n "${{ secrets.KUBE_CONFIG }}" ]; then
             export KUBECONFIG=$PWD/kubeconfig
@@ -69,31 +108,10 @@ jobs:
               --set image.repository=${{ env.IMAGE }} \
               --set image.tag=${{ env.IMAGE_TAG }} \
               --atomic --wait --timeout 5m
+            # Wait for deployments to roll out
+            kubectl rollout status deployment -l app=bobrossbot -n bobrossbot --timeout=3m
           else
             echo "KUBE_CONFIG secret not set; skipping Helm deploy"
+            exit 0
           fi
 
-      - name: "Hetzner: package chart and copy to remote"
-        run: |
-          if [ -n "${{ secrets.HETZNER_HOST }}" ]; then
-            mkdir -p ~/.ssh
-            echo "${{ secrets.HETZNER_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
-            echo "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-            chmod 600 ~/.ssh/id_ed25519
-            tar -czf chart.tar.gz helm
-            SSH_USER="${{ secrets.HETZNER_SSH_USER }}"
-            SSH_USER="${SSH_USER:-root}"
-            scp -o StrictHostKeyChecking=yes chart.tar.gz "${SSH_USER}@${{ secrets.HETZNER_HOST }}:~/chart.tar.gz"
-          else
-            echo "HETZNER_HOST not set; skipping Hetzner deploy"
-          fi
-
-      - name: "Hetzner: remote deploy with Helm"
-        run: |
-          if [ -n "${{ secrets.HETZNER_HOST }}" ]; then
-            SSH_USER="${{ secrets.HETZNER_SSH_USER }}"
-            SSH_USER="${SSH_USER:-root}"
-            ssh -o StrictHostKeyChecking=yes "${SSH_USER}@${{ secrets.HETZNER_HOST }}" 'mkdir -p ~/helm-deploy && tar -xzf ~/chart.tar.gz -C ~/helm-deploy && helm upgrade --install bobrossbot ~/helm-deploy/helm --namespace bobrossbot --create-namespace --set image.repository=${IMAGE} --set image.tag=${IMAGE_TAG} --atomic --wait --timeout 5m && rm -rf ~/chart.tar.gz ~/helm-deploy'
-          else
-            echo "HETZNER_HOST not set; skipping Hetzner deploy"
-          fi
