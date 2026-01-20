@@ -152,7 +152,11 @@ jobs:
           HELM_EXTRA_ARGS: ${{ vars.HELM_EXTRA_ARGS || '' }}
           # Run client-side dry-run for PRs to avoid requiring cluster access; production runs will be live
           DRY_RUN: ${{ github.event_name == 'pull_request' }}
-          HELM_TIMEOUT: '10m'    
+          HELM_TIMEOUT: '10m'
+          # Pass secrets from repository into Helm so chart can create the {{ .Release.Name }}-secrets Secret
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    
         run: |
           set -eux
           export KUBECONFIG="$HOME/.kube/config"
@@ -184,11 +188,20 @@ jobs:
             echo "Main branch deployment detected — using tag 'latest'"
             TAG='latest'
           fi
+          # Prepare secret args for Helm (contents are NOT echoed)
+          HELM_SECRETS_ARGS=""
+          if [ -n "${DISCORD_TOKEN}" ]; then
+            HELM_SECRETS_ARGS="${HELM_SECRETS_ARGS} --set-string secrets.DISCORD_TOKEN='${DISCORD_TOKEN}'"
+          fi
+          if [ -n "${OPENAI_API_KEY}" ]; then
+            HELM_SECRETS_ARGS="${HELM_SECRETS_ARGS} --set-string secrets.OPENAI_API_KEY='${OPENAI_API_KEY}'"
+          fi
+
           if [ "${DRY_RUN}" = "true" ]; then
             echo "PR detected — linting & rendering chart client-side"
             # Lint and template locally to validate chart without contacting the cluster
             helm lint ./helm
-            helm template "${RELEASE}" ./helm --namespace "${NS}" --set image.repository="${IMAGE_REPO}" --set image.tag="${TAG}" ${HELM_EXTRA_ARGS} --debug
+            helm template "${RELEASE}" ./helm --namespace "${NS}" --set image.repository="${IMAGE_REPO}" --set image.tag="${TAG}" ${HELM_SECRETS_ARGS} ${HELM_EXTRA_ARGS} --debug
           else
             echo "Running pre-checks: helm lint and server-side dry-run (skipped on prod/main) with timeout ${HELM_TIMEOUT}"
             # Lint to ensure chart correctness
@@ -196,12 +209,12 @@ jobs:
             # Only run server-side dry-run for non-prod branches (main is treated as prod)
             if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
               echo "Non-prod branch detected — running server-side dry-run"
-              helm upgrade --install "${RELEASE}" ./helm --namespace "${NS}" --create-namespace --set image.repository="${IMAGE_REPO}" --set image.tag="${TAG}" --dry-run --debug --timeout ${HELM_TIMEOUT}
+              helm upgrade --install "${RELEASE}" ./helm --namespace "${NS}" --create-namespace --set image.repository="${IMAGE_REPO}" --set image.tag="${TAG}" ${HELM_SECRETS_ARGS} --dry-run --debug --timeout ${HELM_TIMEOUT}
               echo "Server-side dry-run succeeded; proceeding with live upgrade"
             else
               echo "Prod branch detected (refs/heads/main) — skipping server-side dry-run"
             fi
-            helm upgrade --install "${RELEASE}" ./helm --namespace "${NS}" --create-namespace --set image.repository="${IMAGE_REPO}" --set image.tag="${TAG}" --timeout ${HELM_TIMEOUT} ${HELM_EXTRA_ARGS} || (helm status "${RELEASE}" --namespace "${NS}" && exit 1)
+            helm upgrade --install "${RELEASE}" ./helm --namespace "${NS}" --create-namespace --set image.repository="${IMAGE_REPO}" --set image.tag="${TAG}" ${HELM_SECRETS_ARGS} --timeout ${HELM_TIMEOUT} ${HELM_EXTRA_ARGS} || (helm status "${RELEASE}" --namespace "${NS}" && exit 1)
           fi
 
       - name: Success
