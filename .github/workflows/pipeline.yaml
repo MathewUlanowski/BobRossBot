@@ -117,14 +117,16 @@ jobs:
           KUBECONFIG_SECRET: ${{ vars.KUBE_CONFIG_B64 || secrets.KUBECONFIG || '' }}
         run: |
           set -eux
+          mkdir -p "$HOME/.kube"
           # If KUBECONFIG_SECRET is base64, decode; else write as-is
-          if echo "$KUBECONFIG_SECRET" | base64 --decode >/tmp/kubeconfig 2>/dev/null; then
-            echo "Decoded base64 kubeconfig"
+          if echo "$KUBECONFIG_SECRET" | base64 --decode > "$HOME/.kube/config" 2>/dev/null; then
+            echo "Decoded base64 kubeconfig to $HOME/.kube/config"
           else
-            echo "$KUBECONFIG_SECRET" > /tmp/kubeconfig
+            echo "$KUBECONFIG_SECRET" > "$HOME/.kube/config"
           fi
-          export KUBECONFIG=/tmp/kubeconfig
-          kubectl version --client
+          chmod 600 "$HOME/.kube/config"
+          kubectl version --client || true
+          kubectl cluster-info || echo "cluster-info failed (cluster may be unreachable)"
 
       - name: Helm upgrade
         env:
@@ -136,7 +138,10 @@ jobs:
           HELM_EXTRA_ARGS: ${{ vars.HELM_EXTRA_ARGS || '' }}
         run: |
           set -eux
+          export KUBECONFIG="$HOME/.kube/config"
           IMAGE_REPO="${IMAGE_REGISTRY}/${IMAGE_NAME}"
+          helm version
+          kubectl version --client || true
           helm upgrade --install "$RELEASE" ./helm --namespace "$NS" --create-namespace --set image.repository="$IMAGE_REPO" --set image.tag="$TAG" $HELM_EXTRA_ARGS || (helm status "$RELEASE" --namespace "$NS" && exit 1)
 
       - name: Success
