@@ -56,6 +56,19 @@ jobs:
             type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Install helm
+        run: |
+          set -eux
+          HELM_VERSION=v3.12.0
+          curl -LO "https://get.helm.sh/helm-$HELM_VERSION-linux-amd64.tar.gz"
+          tar xzf "helm-$HELM_VERSION-linux-amd64.tar.gz"
+          install -m 0755 linux-amd64/helm /usr/local/bin/helm
+          helm version
+
+      - name: Helm lint
+        run: |
+          helm lint ./helm
+
       - name: Log in to GHCR
         if: github.event_name == 'push'
         uses: docker/login-action@v3
