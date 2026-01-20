@@ -130,7 +130,8 @@ jobs:
 
       - name: Helm upgrade
         env:
-          RELEASE: ${{ vars.HELM_RELEASE || vars.K8S_DEPLOYMENT || github.repository }}
+          # Prefer explicit HELM_RELEASE or K8S_DEPLOYMENT, else computed at runtime below from GITHUB_REPOSITORY
+          RELEASE: ${{ vars.HELM_RELEASE || vars.K8S_DEPLOYMENT || '' }}
           NS: ${{ vars.K8S_NAMESPACE || 'default' }}
           IMAGE_REGISTRY: ${{ vars.REGISTRY_URL || secrets.REGISTRY_URL }}
           IMAGE_NAME: ${{ vars.IMAGE_NAME }}
@@ -138,11 +139,16 @@ jobs:
           HELM_EXTRA_ARGS: ${{ vars.HELM_EXTRA_ARGS || '' }}
           # Run client-side dry-run for PRs to avoid requiring cluster access; production runs will be live
           DRY_RUN: ${{ github.event_name == 'pull_request' }}
-          HELM_TIMEOUT: '10m'
+          HELM_TIMEOUT: '10m'    
         run: |
           set -eux
           export KUBECONFIG="$HOME/.kube/config"
           IMAGE_REPO="${IMAGE_REGISTRY}/${IMAGE_NAME}"
+          # If RELEASE was not provided via vars, derive it from the repository name (owner/repo -> repo)
+          if [ -z "${RELEASE}" ]; then
+            RELEASE="${GITHUB_REPOSITORY##*/}"
+          fi
+          echo "Using Helm release name: ${RELEASE}"
           helm version
           kubectl version --client || true
           if [ "${DRY_RUN}" = "true" ]; then
