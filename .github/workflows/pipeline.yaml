@@ -56,6 +56,19 @@ jobs:
             type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Install helm
+        run: |
+          set -eux
+          HELM_VERSION=v3.12.0
+          curl -LO "https://get.helm.sh/helm-$HELM_VERSION-linux-amd64.tar.gz"
+          tar xzf "helm-$HELM_VERSION-linux-amd64.tar.gz"
+          install -m 0755 linux-amd64/helm /usr/local/bin/helm
+          helm version
+
+      - name: Helm lint
+        run: |
+          helm lint ./helm
+
       - name: Log in to GHCR
         if: github.event_name == 'push'
         uses: docker/login-action@v3
@@ -126,23 +139,52 @@ jobs:
           fi
           chmod 600 "$HOME/.kube/config"
           kubectl version --client || true
-          kubectl cluster-info || echo "cluster-info failed (cluster may be unreachable)"
+          kubectl cluster-info --request-timeout=60s || echo "cluster-info failed (cluster may be unreachable)"
 
       - name: Helm upgrade
         env:
-          RELEASE: ${{ vars.HELM_RELEASE || vars.K8S_DEPLOYMENT || github.repository }}
+          # Prefer explicit HELM_RELEASE or K8S_DEPLOYMENT, else computed at runtime below from GITHUB_REPOSITORY
+          RELEASE: ${{ vars.HELM_RELEASE || vars.K8S_DEPLOYMENT || '' }}
           NS: ${{ vars.K8S_NAMESPACE || 'default' }}
           IMAGE_REGISTRY: ${{ vars.REGISTRY_URL || secrets.REGISTRY_URL }}
           IMAGE_NAME: ${{ vars.IMAGE_NAME }}
           TAG: ${{ github.event.inputs.image_tag || vars.IMAGE_TAG || needs.build.outputs.image_tag || 'latest' }}
           HELM_EXTRA_ARGS: ${{ vars.HELM_EXTRA_ARGS || '' }}
+          # Run client-side dry-run for PRs to avoid requiring cluster access; production runs will be live
+          DRY_RUN: ${{ github.event_name == 'pull_request' }}
+          HELM_TIMEOUT: '10m'    
         run: |
           set -eux
           export KUBECONFIG="$HOME/.kube/config"
           IMAGE_REPO="${IMAGE_REGISTRY}/${IMAGE_NAME}"
+          # If RELEASE was not provided via vars, derive it from the repository name (owner/repo -> repo)
+          if [ -z "${RELEASE}" ]; then
+            RELEASE="${GITHUB_REPOSITORY##*/}"
+          fi
+          # Sanitize release: lowercase, replace invalid chars with '-', trim leading/trailing '-' and limit length
+          RELEASE=$(echo "${RELEASE}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9.-]/-/g' | sed 's/^-*//; s/-*$//' | cut -c1-53)
+          echo "Using Helm release name: ${RELEASE}"
           helm version
           kubectl version --client || true
-          helm upgrade --install "$RELEASE" ./helm --namespace "$NS" --create-namespace --set image.repository="$IMAGE_REPO" --set image.tag="$TAG" $HELM_EXTRA_ARGS || (helm status "$RELEASE" --namespace "$NS" && exit 1)
+          if [ "${DRY_RUN}" = "true" ]; then
+            echo "PR detected — linting & rendering chart client-side"
+            # Lint and template locally to validate chart without contacting the cluster
+            helm lint ./helm
+            helm template "${RELEASE}" ./helm --namespace "${NS}" --set image.repository="${IMAGE_REPO}" --set image.tag="${TAG}" ${HELM_EXTRA_ARGS} --debug
+          else
+            echo "Running pre-checks: helm lint and server-side dry-run (skipped on prod/main) with timeout ${HELM_TIMEOUT}"
+            # Lint to ensure chart correctness
+            helm lint ./helm
+            # Only run server-side dry-run for non-prod branches (main is treated as prod)
+            if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+              echo "Non-prod branch detected — running server-side dry-run"
+              helm upgrade --install "${RELEASE}" ./helm --namespace "${NS}" --create-namespace --set image.repository="${IMAGE_REPO}" --set image.tag="${TAG}" --dry-run --debug --timeout ${HELM_TIMEOUT}
+              echo "Server-side dry-run succeeded; proceeding with live upgrade"
+            else
+              echo "Prod branch detected (refs/heads/main) — skipping server-side dry-run"
+            fi
+            helm upgrade --install "${RELEASE}" ./helm --namespace "${NS}" --create-namespace --set image.repository="${IMAGE_REPO}" --set image.tag="${TAG}" --timeout ${HELM_TIMEOUT} ${HELM_EXTRA_ARGS} || (helm status "${RELEASE}" --namespace "${NS}" && exit 1)
+          fi
 
       - name: Success
         run: echo "Helm deploy succeeded ✅"
