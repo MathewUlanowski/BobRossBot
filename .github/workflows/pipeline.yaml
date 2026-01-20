@@ -95,20 +95,46 @@ jobs:
           username: ${{ vars.REGISTRY_USERNAME || secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Deploy via Helm Action
-        uses: deliverybot/helm@v1
-        with:
-          release: ${{ vars.HELM_RELEASE || vars.K8S_DEPLOYMENT || github.repository }}
-          namespace: ${{ vars.K8S_NAMESPACE || 'default' }}
-          chart: ./helm
-          values: |
-            image:
-              repository: ${{ vars.REGISTRY_URL || secrets.REGISTRY_URL }}/{{ vars.IMAGE_NAME }}
-              tag: ${{ github.event.inputs.image_tag || vars.IMAGE_TAG || needs.build.outputs.image_tag || 'latest' }}
-          value-files: '["./helm/values.yaml"]'
-          token: ${{ github.token }}
+      - name: Install kubectl and helm
+        run: |
+          set -eux
+          # Install kubectl
+          KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
+          curl -LO "https://dl.k8s.io/release/$KUBECTL_VERSION/bin/linux/amd64/kubectl"
+          install -m 0755 kubectl /usr/local/bin/kubectl
+
+          # Install helm
+          HELM_VERSION=v3.12.0
+          curl -LO "https://get.helm.sh/helm-$HELM_VERSION-linux-amd64.tar.gz"
+          tar xzf "helm-$HELM_VERSION-linux-amd64.tar.gz"
+          install -m 0755 linux-amd64/helm /usr/local/bin/helm
+
+      - name: Write kubeconfig
         env:
-          KUBECONFIG_FILE: ${{ secrets.KUBECONFIG }}
+          KUBECONFIG_SECRET: ${{ vars.KUBE_CONFIG_B64 || secrets.KUBECONFIG || '' }}
+        run: |
+          set -eux
+          # If KUBECONFIG_SECRET is base64, decode; else write as-is
+          if echo "$KUBECONFIG_SECRET" | base64 --decode >/tmp/kubeconfig 2>/dev/null; then
+            echo "Decoded base64 kubeconfig"
+          else
+            echo "$KUBECONFIG_SECRET" > /tmp/kubeconfig
+          fi
+          export KUBECONFIG=/tmp/kubeconfig
+          kubectl version --client
+
+      - name: Helm upgrade
+        env:
+          RELEASE: ${{ vars.HELM_RELEASE || vars.K8S_DEPLOYMENT || github.repository }}
+          NS: ${{ vars.K8S_NAMESPACE || 'default' }}
+          IMAGE_REGISTRY: ${{ vars.REGISTRY_URL || secrets.REGISTRY_URL }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME }}
+          TAG: ${{ github.event.inputs.image_tag || vars.IMAGE_TAG || needs.build.outputs.image_tag || 'latest' }}
+          HELM_EXTRA_ARGS: ${{ vars.HELM_EXTRA_ARGS || '' }}
+        run: |
+          set -eux
+          IMAGE_REPO="${IMAGE_REGISTRY}/${IMAGE_NAME}"
+          helm upgrade --install "$RELEASE" ./helm --namespace "$NS" --create-namespace --set image.repository="$IMAGE_REPO" --set image.tag="$TAG" $HELM_EXTRA_ARGS || (helm status "$RELEASE" --namespace "$NS" && exit 1)
 
       - name: Success
         run: echo "Helm deploy succeeded ✅"
