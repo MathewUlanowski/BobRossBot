@@ -114,7 +114,7 @@ jobs:
 
       - name: Write kubeconfig
         env:
-          KUBECONFIG_SECRET: ${{ vars.KUBE_CONFIG_B64 || secrets.KUBECONFIG || '' }}
+          KUBECONFIG_SECRET: ${{ secrets.KUBE_CONFIG_B64 || vars.KUBE_CONFIG_B64 || secrets.KUBECONFIG || '' }}
         run: |
           set -eux
           mkdir -p "$HOME/.kube"
