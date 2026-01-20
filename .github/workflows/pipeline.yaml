@@ -158,9 +158,14 @@ jobs:
           export KUBECONFIG="$HOME/.kube/config"
           # Compute IMAGE_REPO: prefer explicit IMAGE_NAME, otherwise fallback to github repo (owner/repo)
           if [ -n "${IMAGE_NAME}" ]; then
-            IMAGE_REPO="${IMAGE_REGISTRY}/${IMAGE_NAME}"
+            IMAGE_REPO="${IMAGE_REGISTRY%/}/${IMAGE_NAME}"
           else
-            IMAGE_REPO="${IMAGE_REGISTRY}/${GITHUB_REPOSITORY,,}"
+            # If IMAGE_REGISTRY already contains an owner (has a slash like ghcr.io/owner), only append the repo name
+            if echo "${IMAGE_REGISTRY}" | grep -q '/'; then
+              IMAGE_REPO="${IMAGE_REGISTRY%/}/${GITHUB_REPOSITORY##*/}"
+            else
+              IMAGE_REPO="${IMAGE_REGISTRY%/}/${GITHUB_REPOSITORY,,}"
+            fi
           fi
           # Ensure lowercase and strip accidental double-slashes
           IMAGE_REPO=$(echo "${IMAGE_REPO}" | tr '[:upper:]' '[:lower:]' | sed 's#//*#/#g')
@@ -174,6 +179,11 @@ jobs:
           echo "Using Helm release name: ${RELEASE}"
           helm version
           kubectl version --client || true
+          # Prefer the 'latest' tag for main branch deployments to match push tagging
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            echo "Main branch deployment detected — using tag 'latest'"
+            TAG='latest'
+          fi
           if [ "${DRY_RUN}" = "true" ]; then
             echo "PR detected — linting & rendering chart client-side"
             # Lint and template locally to validate chart without contacting the cluster
