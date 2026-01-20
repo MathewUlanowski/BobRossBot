@@ -156,7 +156,15 @@ jobs:
         run: |
           set -eux
           export KUBECONFIG="$HOME/.kube/config"
-          IMAGE_REPO="${IMAGE_REGISTRY}/${IMAGE_NAME}"
+          # Compute IMAGE_REPO: prefer explicit IMAGE_NAME, otherwise fallback to github repo (owner/repo)
+          if [ -n "${IMAGE_NAME}" ]; then
+            IMAGE_REPO="${IMAGE_REGISTRY}/${IMAGE_NAME}"
+          else
+            IMAGE_REPO="${IMAGE_REGISTRY}/${GITHUB_REPOSITORY,,}"
+          fi
+          # Ensure lowercase and strip accidental double-slashes
+          IMAGE_REPO=$(echo "${IMAGE_REPO}" | tr '[:upper:]' '[:lower:]' | sed 's#//*#/#g')
+          echo "Using image repo: ${IMAGE_REPO}"
           # If RELEASE was not provided via vars, derive it from the repository name (owner/repo -> repo)
           if [ -z "${RELEASE}" ]; then
             RELEASE="${GITHUB_REPOSITORY##*/}"
