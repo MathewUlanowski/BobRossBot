@@ -126,7 +126,7 @@ jobs:
           fi
           chmod 600 "$HOME/.kube/config"
           kubectl version --client || true
-          kubectl cluster-info || echo "cluster-info failed (cluster may be unreachable)"
+          kubectl cluster-info --request-timeout=60s || echo "cluster-info failed (cluster may be unreachable)"
 
       - name: Helm upgrade
         env:
@@ -136,13 +136,23 @@ jobs:
           IMAGE_NAME: ${{ vars.IMAGE_NAME }}
           TAG: ${{ github.event.inputs.image_tag || vars.IMAGE_TAG || needs.build.outputs.image_tag || 'latest' }}
           HELM_EXTRA_ARGS: ${{ vars.HELM_EXTRA_ARGS || '' }}
+          # Run client-side dry-run for PRs to avoid requiring cluster access; production runs will be live
+          DRY_RUN: ${{ github.event_name == 'pull_request' }}
+          HELM_TIMEOUT: '10m'
         run: |
           set -eux
           export KUBECONFIG="$HOME/.kube/config"
           IMAGE_REPO="${IMAGE_REGISTRY}/${IMAGE_NAME}"
           helm version
           kubectl version --client || true
-          helm upgrade --install "$RELEASE" ./helm --namespace "$NS" --create-namespace --set image.repository="$IMAGE_REPO" --set image.tag="$TAG" $HELM_EXTRA_ARGS || (helm status "$RELEASE" --namespace "$NS" && exit 1)
+          if [ "${DRY_RUN}" = "true" ]; then
+            echo "PR detected — running helm in client-side dry-run mode with timeout ${HELM_TIMEOUT}"
+            DRY_ARGS="--dry-run=client --debug --timeout ${HELM_TIMEOUT}"
+          else
+            echo "Running live helm upgrade with timeout ${HELM_TIMEOUT}"
+            DRY_ARGS="--timeout ${HELM_TIMEOUT}"
+          fi
+          helm upgrade --install "$RELEASE" ./helm --namespace "$NS" --create-namespace --set image.repository="$IMAGE_REPO" --set image.tag="$TAG" $DRY_ARGS $HELM_EXTRA_ARGS || (helm status "$RELEASE" --namespace "$NS" && exit 1)
 
       - name: Success
         run: echo "Helm deploy succeeded ✅"
